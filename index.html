@@ -3,328 +3,160 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Company AI Architect — Private AI Audits for Real Businesses</title>
-  <meta name="description" content="We audit your business, rank AI opportunities by ROI, and ship a private local AI package — your data never has to leave your building." />
-  <meta name="theme-color" content="#05060f" />
+  <title>Company AI Architect — Private AI on hardware you own</title>
+  <meta name="description" content="We audit how a business actually runs, rank AI by ROI, and ship a private local package. Customer data stays off public ChatGPT. Free discovery. Audits from $1,500." />
   <meta property="og:title" content="Company AI Architect" />
-  <meta property="og:description" content="Audit businesses · map AI ROI · ship private local AI. Free discovery call. From $1,500." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://joshtitan88-collab.github.io/company-ai-architect/" />
+  <meta property="og:description" content="Find where AI pays off. Ship it on your hardware." />
+  <meta property="og:image" content="./assets/hero-desktop.jpg" />
+  <meta name="theme-color" content="#05060f" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%235b8cff'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div class="bg" aria-hidden="true">
-    <div class="bg-grid"></div>
-    <canvas id="particles"></canvas>
-  </div>
-
-  <header class="nav">
-    <a class="nav-brand" href="#top">
-      <span class="logo" aria-hidden="true"></span>
-      <span>Company AI Architect</span>
-    </a>
-    <nav class="nav-links">
-      <a href="#how">How it works</a>
-      <a href="#deliverables">Deliverables</a>
-      <a href="#case">Case study</a>
-      <a href="#pricing">Pricing</a>
-      <a class="btn btn-sm" href="#book">Book audit</a>
-    </nav>
-  </header>
+  <div class="cursor" aria-hidden="true"></div>
+  <nav class="nav">
+    <a class="mark" href="#top">Company AI Architect</a>
+    <a class="nav-cta" href="#unlock">Unlock a discovery call</a>
+  </nav>
 
   <main id="top">
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">Private AI · SMB &amp; mid-market · 90-day pilots</p>
-        <h1>Find where AI pays off.<br /><em>Ship it on your hardware.</em></h1>
-        <p class="lede">
-          Company AI Architect audits how a business actually runs, ranks opportunities by ROI,
-          and emits a deployable <strong>private local AI package</strong> — reports, stack design,
-          and a 90-day plan. Customer data stays off public ChatGPT by design.
-        </p>
-        <div class="hero-cta">
-          <a class="btn" href="#book">Book a free discovery call</a>
-          <a class="btn ghost" href="#case">See sample HVAC audit</a>
-        </div>
-        <ul class="hero-stats">
-          <li><strong>5-stage</strong><span>audit pipeline</span></li>
-          <li><strong>Local-first</strong><span>Ollama / on-prem</span></li>
-          <li><strong>90 days</strong><span>pilot roadmap</span></li>
-          <li><strong>$1,500+</strong><span>paid audits</span></li>
+    <section class="story" id="story" aria-label="Opening story">
+      <div class="stage">
+        <picture>
+          <source media="(max-width: 720px)" srcset="./assets/hero-mobile.jpg" />
+          <img class="stage-img" src="./assets/hero-desktop.jpg" alt="Night field-service shop with a cyan filament tracing through the building" />
+        </picture>
+        <div class="stage-veil"></div>
+        <svg class="filament" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <path d="M280 220 C 420 260, 520 340, 640 390 S 880 430, 980 500 S 1180 620, 1320 540" />
+        </svg>
+        <article class="beat on" data-beat="0">
+          <p class="kicker">Trades · private AI · 2 minutes</p>
+          <h1>Why quotes still die after you send them.</h1>
+          <p class="lede">Two minutes. Then a free 30-minute discovery if you want it. No signup to read.</p>
+        </article>
+        <article class="beat" data-beat="1">
+          <p class="kicker">The leak</p>
+          <h2>It’s just running in someone else’s cloud.</h2>
+          <p class="lede">ChatGPT tabs. Copy-paste. No memory. Customer notes leaving the building every time a dispatcher asks a question.</p>
+        </article>
+        <article class="beat" data-beat="2">
+          <p class="kicker">The map</p>
+          <h2>We find where it actually pays.</h2>
+          <p class="lede">Five-stage audit. Ranked by ROI, hours back per week, and whether the work belongs on hardware you own.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel panel-room" id="room">
+      <div class="panel-media">
+        <img src="./assets/room.jpg" alt="Private GPU workstation on a steel bench in a quiet back room" />
+      </div>
+      <div class="panel-copy">
+        <p class="kicker">The room</p>
+        <h2>Then we put the brain on hardware you own.</h2>
+        <p class="lede">Tower, mini, or your site. Local models. No metered “AI employee” sitting on your customers. You keep the package either way.</p>
+        <ul class="facts">
+          <li><span>5-stage</span> audit pipeline</li>
+          <li><span>Local-first</span> Ollama / on-prem</li>
+          <li><span>90 days</span> pilot roadmap</li>
         </ul>
       </div>
-      <div class="hero-panel card">
-        <div class="panel-head">
-          <span class="dot live"></span>
-          Live audit pipeline
-        </div>
-        <div class="pipeline" id="pipeline">
-          <div class="stage active" data-i="0"><span>01</span> Ingest</div>
-          <div class="stage" data-i="1"><span>02</span> Model company</div>
-          <div class="stage" data-i="2"><span>03</span> Rank ROI</div>
-          <div class="stage" data-i="3"><span>04</span> Design stack</div>
-          <div class="stage" data-i="4"><span>05</span> Emit package</div>
-        </div>
-        <div class="progress-wrap"><div class="progress-bar" id="progressBar"></div></div>
-        <p class="panel-note" id="stageNote">Ingesting systems, pain points, and goals…</p>
-        <div class="gauge-row">
-          <div class="mini-gauge">
-            <svg viewBox="0 0 100 100">
-              <circle class="track" cx="50" cy="50" r="42" />
-              <circle class="value" id="gaugeArc" cx="50" cy="50" r="42" />
-            </svg>
-            <div class="gauge-label"><strong id="gaugeScore">70</strong><span>readiness</span></div>
-          </div>
-          <ul class="mini-meta">
-            <li>Approach: <strong>custom_local</strong></li>
-            <li>Top ROI: <strong>15.0</strong></li>
-            <li>Hrs/wk saved: <strong>~36</strong></li>
-            <li>Privacy: <strong>on-prem preferred</strong></li>
-          </ul>
-        </div>
+    </section>
+
+    <section class="panel panel-proof" id="proof">
+      <div class="proof-head">
+        <p class="kicker">Sample engagement</p>
+        <h2>A shop like yours. Notes retyped. Quotes sitting.</h2>
+        <p class="lede">Sample HVAC walk-through. Dispatchers copying job notes. After-hours voicemail. Quotes nobody followed. Senior techs walking out with the playbook.</p>
+      </div>
+      <div class="proof-grid">
+        <article>
+          <p class="num">Quotes</p>
+          <p class="label">sent, then silent</p>
+          <p class="sub">the job goes to whoever called back</p>
+        </article>
+        <article>
+          <p class="num">5pm+</p>
+          <p class="label">calls on one mobile</p>
+          <p class="sub">morning spent on voicemail</p>
+        </article>
+        <article>
+          <p class="num">Notes</p>
+          <p class="label">retyped at dispatch</p>
+          <p class="sub">same story, every ticket</p>
+        </article>
+        <article>
+          <p class="num">Keep it</p>
+          <p class="label">the written map</p>
+          <p class="sub">yours even if you never install</p>
+        </article>
+      </div>
+      <p class="ask">If the hours are real, we talk a 14-day install. If not, you keep the map.</p>
+    </section>
+
+    <section class="panel panel-hand" id="handoff">
+      <div class="panel-media">
+        <img src="./assets/package.jpg" alt="Sealed matte-black case with a cyan latch, the finished private package" />
+      </div>
+      <div class="panel-copy">
+        <p class="kicker">What you keep</p>
+        <h2>A package you can hand to an owner.</h2>
+        <ul class="stack">
+          <li><strong>AI audit report</strong> — readiness, ROI table, systems map, 90-day plan.</li>
+          <li><strong>Sales one-pager</strong> — top three opportunities, the ask, in owner language.</li>
+          <li><strong>Stack design</strong> — buy / integrate / private local. Local when PII must stay in-network.</li>
+          <li><strong>Private AI bundle</strong> — ingest, chat entrypoint, hooks into the tools you already run.</li>
+        </ul>
       </div>
     </section>
 
-    <section class="section" id="how">
-      <div class="section-head">
-        <p class="eyebrow">Process</p>
-        <h2>From messy reality to a private AI pilot</h2>
-        <p class="section-lede">Five stages. One engagement. You keep the report either way.</p>
-      </div>
-      <div class="grid-3">
-        <article class="card step">
-          <span class="step-n">01</span>
-          <h3>Describe the business</h3>
-          <p>Company, industry, tools, pain points, goals. Upload SOPs or notes if you have them. We model departments and processes — not generic “use ChatGPT” advice.</p>
+    <section class="prices" id="prices">
+      <p class="kicker">Clear packages</p>
+      <h2>Paid work starts when scope is clear.</h2>
+      <div class="price-grid">
+        <article>
+          <p class="tier">Discovery</p>
+          <p class="sum">Free</p>
+          <p>30 minutes. Fit check. Rough opportunity map. You keep the notes.</p>
         </article>
-        <article class="card step">
-          <span class="step-n">02</span>
-          <h3>Rank opportunities by ROI</h3>
-          <p>Each opportunity scores impact, effort, build type (buy / integrate / local RAG / custom local), and estimated hours saved per week.</p>
+        <article class="featured">
+          <p class="tier">AI Opportunity Audit</p>
+          <p class="sum">$1,500</p>
+          <p>SMB · one company · about a week. Full 5-stage audit, PDF + one-pager, ranked ROI, 90-day plan.</p>
         </article>
-        <article class="card step">
-          <span class="step-n">03</span>
-          <h3>Ship the package</h3>
-          <p>Full audit PDF, sales one-pager, recommended stack, 90-day plan, and a private local AI bundle with an <code>ask.sh</code> entrypoint when custom local wins.</p>
+        <article>
+          <p class="tier">Architect + Pilot</p>
+          <p class="sum">$4,500+</p>
+          <p>Everything in Audit, plus stack design, deployable private package, and pilot success metrics.</p>
         </article>
       </div>
+      <p class="fine">Enterprise multi-site and on-prem installs quoted separately. We do not sell metered AI employees on your customer data.</p>
     </section>
 
-    <section class="section" id="deliverables">
-      <div class="section-head">
-        <p class="eyebrow">What you get</p>
-        <h2>Artifacts you can hand to an owner or board</h2>
-      </div>
-      <div class="grid-2">
-        <article class="card deliverable">
-          <h3>AI Audit Report</h3>
-          <p>Executive summary, company model, ranked opportunities, stack recommendation, compliance notes, and a concrete pilot plan.</p>
-          <ul>
-            <li>Readiness score (0–100)</li>
-            <li>ROI table with build type</li>
-            <li>Systems &amp; data map</li>
-          </ul>
-        </article>
-        <article class="card deliverable">
-          <h3>Sales one-pager</h3>
-          <p>One-page brief for decision makers: top 3 opportunities, recommended approach, and the ask (usually a 90-day pilot).</p>
-          <ul>
-            <li>Owner-friendly language</li>
-            <li>Clear next step</li>
-            <li>Scoped pilot ask</li>
-          </ul>
-        </article>
-        <article class="card deliverable">
-          <h3>Stack design</h3>
-          <p>Buy vs integrate vs private local. We bias to local when PII, payments, or tribal knowledge must stay in-network.</p>
-          <ul>
-            <li>Ollama / GPU profiles</li>
-            <li>RAG over SOPs &amp; tickets</li>
-            <li>Integration points</li>
-          </ul>
-        </article>
-        <article class="card deliverable">
-          <h3>Private AI package</h3>
-          <p>Deployable local bundle for pilots — knowledge ingest, chat entrypoint, and hooks into the systems you already run.</p>
-          <ul>
-            <li>Runs on your hardware</li>
-            <li>No metered public API required</li>
-            <li>Measured hours saved weekly</li>
-          </ul>
-        </article>
-      </div>
-    </section>
-
-    <section class="section" id="case">
-      <div class="section-head">
-        <p class="eyebrow">Sample engagement</p>
-        <h2>Acme HVAC Services <span class="pill">demo</span></h2>
-        <p class="section-lede">Field service · SMB · privacy / local AI required · readiness <strong>70/100</strong></p>
-      </div>
-      <div class="case card">
-        <div class="case-grid">
-          <div>
-            <h3>Pains</h3>
-            <ul>
-              <li>Dispatchers retype customer notes for hours each day</li>
-              <li>Techs lack model-specific repair guidance</li>
-              <li>Inconsistent install quoting</li>
-              <li>Tribal knowledge walks out with senior techs</li>
-            </ul>
-          </div>
-          <div>
-            <h3>Top opportunities</h3>
-            <table class="roi-table">
-              <thead>
-                <tr><th>#</th><th>Opportunity</th><th>ROI</th><th>Hrs/wk</th></tr>
-              </thead>
-              <tbody>
-                <tr><td>1</td><td>Transcription → work orders</td><td>15.0</td><td>8</td></tr>
-                <tr><td>2</td><td>Invoice draft + reminders</td><td>15.0</td><td>6</td></tr>
-                <tr><td>3</td><td>Technician guidance system</td><td>13.9</td><td>15</td></tr>
-                <tr><td>4</td><td>Install quote generator</td><td>13.8</td><td>3</td></tr>
-                <tr><td>5</td><td>Parts ordering from notes</td><td>11.7</td><td>4</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="case-ask">
-          <strong>Ask:</strong> Approve a 90-day pilot starting with opportunity #1 — stand up a private local AI package and measure hours saved weekly.
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="who">
-      <div class="section-head">
-        <p class="eyebrow">Fit</p>
-        <h2>Built for operators who cannot leak customer data</h2>
-      </div>
-      <div class="grid-3">
-        <article class="card">
-          <h3>Field service</h3>
-          <p>HVAC, plumbing, electrical — dispatch, quoting, technician guidance, SOPs that stay private.</p>
-        </article>
-        <article class="card">
-          <h3>Professional services</h3>
-          <p>Legal, dental, accounting — intake, document Q&amp;A, billing follow-up without public cloud chat.</p>
-        </article>
-        <article class="card">
-          <h3>Agencies &amp; multi-location SMBs</h3>
-          <p>Standardize tribal knowledge across sites while keeping the company brain on hardware you control.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="section" id="pricing">
-      <div class="section-head">
-        <p class="eyebrow">Pricing</p>
-        <h2>Clear packages. Real deliverables.</h2>
-        <p class="section-lede">Discovery call is free. Paid work starts only when scope is clear.</p>
-      </div>
-      <div class="grid-3 pricing">
-        <article class="card price">
-          <p class="price-tag">Discovery</p>
-          <h3>Free</h3>
-          <p class="price-sub">30 minutes · no prep required</p>
-          <ul>
-            <li>Fit check for private AI</li>
-            <li>Rough opportunity map</li>
-            <li>You keep the notes</li>
-          </ul>
-          <a class="btn ghost full" href="#book">Book call</a>
-        </article>
-        <article class="card price featured">
-          <p class="price-tag">AI Opportunity Audit</p>
-          <h3>$1,500</h3>
-          <p class="price-sub">SMB · 1 company · ~1 week</p>
-          <ul>
-            <li>Full 5-stage audit</li>
-            <li>PDF report + sales one-pager</li>
-            <li>Ranked ROI table</li>
-            <li>90-day pilot plan</li>
-          </ul>
-          <a class="btn full" href="mailto:joshua@hhinvestigations.com?subject=AI%20Opportunity%20Audit%20%28%241%2C500%29&body=Company%3A%0AIndustry%3A%0ATools%3A%0ABiggest%20pain%3A%0APreferred%20call%20times%3A">Start audit</a>
-        </article>
-        <article class="card price">
-          <p class="price-tag">Architect + Pilot</p>
-          <h3>$4,500+</h3>
-          <p class="price-sub">Audit + private package + 90-day pilot design</p>
-          <ul>
-            <li>Everything in Audit</li>
-            <li>Stack design for local AI</li>
-            <li>Deployable private package</li>
-            <li>Pilot success metrics</li>
-          </ul>
-          <a class="btn ghost full" href="mailto:joshua@hhinvestigations.com?subject=Architect%20%2B%20Pilot%20Inquiry">Talk scope</a>
-        </article>
-      </div>
-      <p class="fineprint">Enterprise multi-site and on-prem installs quoted separately. We do not sell metered “AI employees” on your customer data — we design systems you own.</p>
-    </section>
-
-    <section class="section" id="trust">
-      <div class="grid-2">
-        <article class="card">
-          <h3>Privacy by architecture</h3>
-          <p>When privacy is required, models and knowledge stay on hardware you control (tower, mini, or client site). Public cloud chat is optional — never the default for PII-heavy workflows.</p>
-        </article>
-        <article class="card">
-          <h3>Who runs this</h3>
-          <p><strong>Joshua Henry</strong> — principal. Product runs on a dedicated GPU tower with local models (Ollama), agent orchestration, and a visual audit UI you can demo live after engagement.</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="section book" id="book">
-      <div class="card book-card">
-        <div>
-          <p class="eyebrow">Next step</p>
-          <h2>Book your free discovery call</h2>
-          <p class="section-lede">Tell us the company, industry, and one pain that costs real hours. We reply with times and a short agenda.</p>
-          <ul class="book-list">
-            <li>No obligation to buy an audit</li>
-            <li>No customer data required on the call</li>
-            <li>Sample HVAC report available on request</li>
-          </ul>
-        </div>
-        <form class="book-form" id="bookForm" action="mailto:joshua@hhinvestigations.com" method="get" enctype="text/plain">
-          <input type="hidden" name="subject" value="Company AI Architect — Discovery Call" />
-          <label>Your name
-            <input name="name" required placeholder="Alex Rivera" autocomplete="name" />
-          </label>
-          <label>Work email
-            <input name="email" type="email" required placeholder="alex@company.com" autocomplete="email" />
-          </label>
-          <label>Company
-            <input name="company" required placeholder="Acme HVAC Services" />
-          </label>
-          <label>What should AI take off your plate?
-            <textarea name="body" rows="4" required placeholder="Dispatch retypes notes for hours… senior techs leaving… inconsistent quotes…"></textarea>
-          </label>
-          <button class="btn full" type="submit">Email to book →</button>
-          <p class="form-alt">Or write directly: <a href="mailto:joshua@hhinvestigations.com?subject=Company%20AI%20Architect%20Discovery">joshua@hhinvestigations.com</a></p>
-        </form>
-      </div>
+    <section class="unlock" id="unlock">
+      <p class="kicker">Next step</p>
+      <h2>Unlock a free discovery call.</h2>
+      <p class="lede">30 minutes. Free. You keep the notes. Tell us the company and one pain that costs real hours. We reply with times. No customer data on the call.</p>
+      <form class="unlock-form" action="mailto:joshua@hhinvestigations.com?subject=Company%20AI%20Architect%20Discovery" method="post" enctype="text/plain">
+        <label>Your name <input name="name" autocomplete="name" required /></label>
+        <label>Work email <input name="email" type="email" autocomplete="email" required /></label>
+        <label>Company <input name="company" autocomplete="organization" required /></label>
+        <label>What should AI take off your plate?
+          <textarea name="pain" rows="4" required></textarea>
+        </label>
+        <button type="submit">Unlock the call</button>
+      </form>
+      <p class="fine">Or write <a href="mailto:joshua@hhinvestigations.com?subject=Company%20AI%20Architect%20Discovery">joshua@hhinvestigations.com</a></p>
     </section>
   </main>
 
-  <footer class="footer">
-    <div class="footer-inner">
-      <div class="nav-brand">
-        <span class="logo sm" aria-hidden="true"></span>
-        <span>Company AI Architect</span>
-      </div>
-      <p>© <span id="year"></span> · Private AI audits &amp; local packages · Greater Atlanta · Nationwide remote</p>
-      <p class="footer-links">
-        <a href="mailto:joshua@hhinvestigations.com">Contact</a>
-        ·
-        <a href="#pricing">Pricing</a>
-        ·
-        <a href="#case">Sample</a>
-      </p>
-    </div>
+  <footer>
+    <p>Company AI Architect · Joshua Henry · Privacy by architecture.</p>
   </footer>
-
-  <script src="app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>

@@ -1,117 +1,51 @@
-/* Company AI Architect — marketing interactions */
-(function () {
-  const notes = [
-    "Ingesting systems, pain points, and goals…",
-    "Modeling departments, processes, and data constraints…",
-    "Ranking opportunities by impact, effort, and hours saved…",
-    "Designing buy / integrate / custom-local stack…",
-    "Emitting audit PDF, one-pager, and private AI package…",
-  ];
-  const stages = Array.from(document.querySelectorAll(".stage"));
-  const bar = document.getElementById("progressBar");
-  const note = document.getElementById("stageNote");
-  const scoreEl = document.getElementById("gaugeScore");
-  const arc = document.getElementById("gaugeArc");
-  let i = 0;
+const story = document.querySelector(".story");
+const img = document.querySelector(".stage-img");
+const path = document.querySelector(".filament path");
+const beats = [...document.querySelectorAll(".beat")];
+const cursor = document.querySelector(".cursor");
+const length = path ? path.getTotalLength() : 1800;
+if (path) {
+  path.style.strokeDasharray = String(length);
+  path.style.strokeDashoffset = String(length);
+}
 
-  function setStage(idx) {
-    stages.forEach((el, n) => {
-      el.classList.toggle("active", n === idx);
-      el.classList.toggle("done", n < idx);
-    });
-    if (bar) bar.style.width = `${((idx + 1) / stages.length) * 100}%`;
-    if (note) note.textContent = notes[idx] || notes[0];
+function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+function tick() {
+  if (!story) return;
+  const rect = story.getBoundingClientRect();
+  const total = story.offsetHeight - window.innerHeight;
+  const p = clamp(-rect.top / total, 0, 1);
+  if (img) {
+    const scale = 1 + p * 0.18;
+    img.style.transform = `scale(${scale}) translate3d(0, ${p * -4}%, 0)`;
+    img.style.filter = `saturate(${1 + p * 0.15}) contrast(${1.02 + p * 0.08})`;
   }
+  if (path) path.style.strokeDashoffset = String(length * (1 - p));
+  const i = p < 0.33 ? 0 : p < 0.66 ? 1 : 2;
+  beats.forEach((b, n) => b.classList.toggle("on", n === i));
+}
 
-  setInterval(() => {
-    i = (i + 1) % stages.length;
-    setStage(i);
-  }, 2200);
+window.addEventListener("scroll", () => requestAnimationFrame(tick), { passive: true });
+window.addEventListener("resize", tick);
+tick();
 
-  // Count-up readiness gauge
-  const target = 70;
-  const circumference = 2 * Math.PI * 42;
-  if (arc) {
-    arc.style.strokeDasharray = String(circumference);
-    arc.style.strokeDashoffset = String(circumference);
-  }
-  let shown = 0;
-  const tick = setInterval(() => {
-    shown += 2;
-    if (shown >= target) {
-      shown = target;
-      clearInterval(tick);
-    }
-    if (scoreEl) scoreEl.textContent = String(shown);
-    if (arc) {
-      const offset = circumference * (1 - shown / 100);
-      arc.style.strokeDashoffset = String(offset);
-    }
-  }, 30);
+window.addEventListener("mousemove", (e) => {
+  if (!cursor) return;
+  cursor.style.left = e.clientX + "px";
+  cursor.style.top = e.clientY + "px";
+});
+document.querySelectorAll("a, button, input, textarea").forEach((el) => {
+  el.addEventListener("mouseenter", () => { if (cursor) cursor.style.transform = "translate(-50%,-50%) scale(1.8)"; });
+  el.addEventListener("mouseleave", () => { if (cursor) cursor.style.transform = "translate(-50%,-50%) scale(1)"; });
+});
 
-  // Particles
-  const canvas = document.getElementById("particles");
-  if (canvas && canvas.getContext) {
-    const ctx = canvas.getContext("2d");
-    let w = 0, h = 0, dots = [];
-    function resize() {
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
-      const n = Math.min(70, Math.floor((w * h) / 22000));
-      dots = Array.from({ length: n }, () => ({
-        x: Math.random() * w,
-        y: Math.random() * h,
-        r: Math.random() * 1.6 + 0.4,
-        vx: (Math.random() - 0.5) * 0.25,
-        vy: (Math.random() - 0.5) * 0.25,
-        a: Math.random() * 0.45 + 0.15,
-      }));
-    }
-    function frame() {
-      ctx.clearRect(0, 0, w, h);
-      for (const d of dots) {
-        d.x += d.vx;
-        d.y += d.vy;
-        if (d.x < 0) d.x = w;
-        if (d.x > w) d.x = 0;
-        if (d.y < 0) d.y = h;
-        if (d.y > h) d.y = 0;
-        ctx.beginPath();
-        ctx.fillStyle = `rgba(120, 180, 255, ${d.a})`;
-        ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      requestAnimationFrame(frame);
-    }
-    window.addEventListener("resize", resize);
-    resize();
-    frame();
-  }
-
-  // Book form → mailto with structured body
-  const form = document.getElementById("bookForm");
-  if (form) {
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      const name = (fd.get("name") || "").toString().trim();
-      const email = (fd.get("email") || "").toString().trim();
-      const company = (fd.get("company") || "").toString().trim();
-      const body = (fd.get("body") || "").toString().trim();
-      const text = [
-        `Name: ${name}`,
-        `Email: ${email}`,
-        `Company: ${company}`,
-        "",
-        "What AI should take off our plate:",
-        body,
-      ].join("\n");
-      const subject = encodeURIComponent("Company AI Architect — Discovery Call");
-      const mailBody = encodeURIComponent(text);
-      window.location.href = `mailto:joshua@hhinvestigations.com?subject=${subject}&body=${mailBody}`;
-    });
-  }
-
-  const year = document.getElementById("year");
-  if (year) year.textContent = String(new Date().getFullYear());
-})();
+document.querySelector(".unlock-form")?.addEventListener("submit", (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const body = [...fd.entries()].map(([k, v]) => `${k}: ${v}`).join("\n");
+  const href = "mailto:joshua@hhinvestigations.com?subject=" +
+    encodeURIComponent("Company AI Architect Discovery") +
+    "&body=" + encodeURIComponent(body);
+  window.location.href = href;
+});
