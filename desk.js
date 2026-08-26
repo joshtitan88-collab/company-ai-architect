@@ -1,4 +1,3 @@
-const EMAIL = "joshua@hhinvestigations.com";
 const said = document.getElementById("said");
 const logEl = document.getElementById("log");
 const q = document.getElementById("q");
@@ -7,26 +6,26 @@ const cardsEl = document.getElementById("cards");
 const bookEl = document.getElementById("bookbox");
 const desk = document.getElementById("desk");
 const micBtn = document.getElementById("mic");
-let avail = null;
-let selectedSlot = null;
-let speaking = false;
+const hint = document.querySelector(".desk-ui .hint");
+let remoteSlots = [];
+let selected = null;
 
 const LINES = {
   hello: "I'm the desk for Company AI Architect. Thirty minutes, free. Tell me the shop and what is leaking hours, or ask me to put a discovery on the calendar.",
   capabilities: "We ingest how the shop actually runs, rank the work by hours back, and put a private stack on hardware you own. Not a ChatGPT login. Not a metered employee on your customers.",
   price: "Discovery is free. The written audit is one thousand five hundred. Architect plus a fourteen-day install starts at four thousand five hundred. You keep the map even if you stop after the audit.",
   privacy: "Customer files do not belong on this site. The discovery call does not need them. When we install, models stay on a tower, mini, or machine at your shop.",
-  schedule: "Here are open discovery times in Eastern. The board shows openings only — not who is on the book. Pick a slot and I'll take your name.",
+  schedule: "Here are open discovery times in Eastern. Openings only — not who is on the book. Pick a slot.",
   none: "I can book a discovery, explain the five-stage audit, quote the packages, or talk privacy. Speak or type.",
 };
 
 function preferFemaleVoice() {
   const vs = speechSynthesis.getVoices();
   const rank = (v) => {
-    const n = (v.name + v.lang).toLowerCase();
+    const n = (v.name + " " + v.lang).toLowerCase();
     let s = 0;
     if (v.lang.startsWith("en")) s += 4;
-    if (/female|woman|samantha|victoria|karen|moira|zira|susan|fiona|aria|jenny|natural/.test(n)) s += 6;
+    if (/female|woman|samantha|victoria|karen|moira|zira|susan|fiona|jenny|natural/.test(n)) s += 6;
     if (/google|premium|neural/.test(n)) s += 2;
     return s;
   };
@@ -35,6 +34,7 @@ function preferFemaleVoice() {
 
 function speak(text) {
   said.textContent = text;
+  if (hint) hint.classList.add("hidden");
   if (!window.speechSynthesis) return;
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
@@ -42,8 +42,8 @@ function speak(text) {
   u.pitch = 1.02;
   const v = preferFemaleVoice();
   if (v) u.voice = v;
-  u.onstart = () => { speaking = true; desk.classList.add("talking"); };
-  u.onend = () => { speaking = false; desk.classList.remove("talking"); };
+  u.onstart = () => desk.classList.add("talking");
+  u.onend = () => desk.classList.remove("talking");
   speechSynthesis.speak(u);
 }
 
@@ -67,75 +67,47 @@ function showCards(title, items) {
   cardsEl.innerHTML = `<h3>${title}</h3>` + items.map((it) => `<article><strong>${it.t}</strong> ${it.b}</article>`).join("");
 }
 
-function overlaps(a0, a1, b0, b1) {
-  return a0 < b1 && b0 < a1;
-}
-
-function buildSlots(data) {
-  const busy = (data.busy || []).map((b) => [Date.parse(b.start), Date.parse(b.end)]);
-  const out = [];
-  const end = new Date(data.rangeEnd + "T23:59:59-04:00");
-  const now = Date.now();
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  for (let day = 0; day < 18; day++) {
-    const cur = new Date(d.getTime() + day * 86400000);
-    const wd = cur.getDay();
-    if (!data.weekdays.includes(wd)) continue;
-    const y = cur.getFullYear();
-    const m = String(cur.getMonth() + 1).padStart(2, "0");
-    const da = String(cur.getDate()).padStart(2, "0");
-    for (let h = data.hours.start; h < data.hours.end; h++) {
-      for (let min = 0; min < 60; min += data.slotMinutes) {
-        const start = Date.parse(`${y}-${m}-${da}T${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}:00-04:00`);
-        const stop = start + data.slotMinutes * 60000;
-        if (start < now || start > end.getTime()) continue;
-        if (busy.some(([b0, b1]) => overlaps(start, stop, b0, b1))) continue;
-        out.push(start);
-      }
-    }
-  }
-  return out;
-}
-
 function fmtDay(ts) {
   return new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "America/New_York" }).format(new Date(ts));
 }
 function fmtTime(ts) {
   return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone: "America/New_York" }).format(new Date(ts));
 }
+function dayKey(ts) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(ts));
+}
 
 function renderCal(focusDay) {
-  if (!avail) return;
-  const slots = buildSlots(avail);
   const byDay = new Map();
-  for (const t of slots) {
-    const key = new Intl.DateTimeFormat("en-CA", { timeZone: "America/New_York" }).format(new Date(t));
-    if (!byDay.has(key)) byDay.set(key, []);
-    byDay.get(key).push(t);
+  for (const s of remoteSlots) {
+    const t = s.start;
+    const k = dayKey(t);
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(s);
   }
   const days = [...byDay.keys()];
+  hidePanels();
   if (!days.length) {
-    calEl.innerHTML = `<h3>Open discovery times</h3><p class="fine">No open weekday slots in this window. Type a time you want and I'll email Joshua to confirm.</p>`;
+    calEl.innerHTML = `<h3>Open discovery times</h3><p class="fine">No open weekday slots in this window. Name a time and I'll still take the request.</p>`;
     calEl.classList.remove("hidden");
     return;
   }
   const day = focusDay && byDay.has(focusDay) ? focusDay : days[0];
-  const chips = byDay.get(day).map((t) =>
-    `<button type="button" class="slot${selectedSlot === t ? " on" : ""}" data-ts="${t}">${fmtTime(t)}</button>`
+  const chips = byDay.get(day).map((s) =>
+    `<button type="button" class="slot${selected && selected.iso === s.iso ? " on" : ""}" data-iso="${s.iso}" data-ts="${s.start}">${fmtTime(s.start)}</button>`
   ).join("");
   const dayBtns = days.map((k) => {
-    const t = byDay.get(k)[0];
+    const t = byDay.get(k)[0].start;
     return `<button type="button" class="cal-day${k === day ? " on" : ""}" data-day="${k}"><span class="d">${fmtDay(t).split(" ")[0]}</span><span class="n">${fmtDay(t).split(" ").slice(1).join(" ")}</span></button>`;
   }).join("");
   calEl.innerHTML = `<h3>Open discovery times · Eastern</h3>
     <div class="cal-days">${dayBtns}</div>
     <div class="slots">${chips}</div>
-    <p class="fine">Openings only. No names. Thirty minutes. You keep the notes.</p>`;
+    <p class="fine">Openings only. No names. Thirty minutes.</p>`;
   calEl.classList.remove("hidden");
   calEl.querySelectorAll(".cal-day").forEach((b) => b.addEventListener("click", () => renderCal(b.dataset.day)));
   calEl.querySelectorAll(".slot").forEach((b) => b.addEventListener("click", () => {
-    selectedSlot = Number(b.dataset.ts);
+    selected = { iso: b.dataset.iso, start: Number(b.dataset.ts) };
     openBook();
   }));
 }
@@ -143,9 +115,9 @@ function renderCal(focusDay) {
 function openBook() {
   hidePanels();
   bookEl.classList.remove("hidden");
-  const when = selectedSlot ? `${fmtDay(selectedSlot)} at ${fmtTime(selectedSlot)} Eastern` : "a time we confirm";
+  const when = selected ? `${fmtDay(selected.start)} at ${fmtTime(selected.start)} Eastern` : "a time we confirm";
   document.getElementById("slotLabel").textContent = when;
-  speak("Give me your name, work email, and the shop. I'll send Joshua that slot. He confirms. This page does not write the calendar itself.");
+  speak("Name, work email, shop. I send the slot to Joshua. He confirms. This board never shows who is booked.");
 }
 
 function handle(text) {
@@ -172,7 +144,7 @@ function handle(text) {
     speak(LINES.privacy);
     return;
   }
-  if (/what do you|capabilit|how it work|audit|pipeline|install|ai|agent/.test(s)) {
+  if (/what do you|capabilit|how it work|pipeline|install|ai|agent/.test(s)) {
     speak(LINES.capabilities);
     showCards("Five stages", [
       { t: "01 Ingest", b: "How the shop actually runs." },
@@ -199,19 +171,11 @@ if (Rec) {
   const rec = new Rec();
   rec.lang = "en-US";
   rec.interimResults = false;
-  rec.onresult = (e) => {
-    const t = e.results[0][0].transcript;
-    q.value = t;
-    handle(t);
-  };
+  rec.onresult = (e) => handle(e.results[0][0].transcript);
   rec.onend = () => micBtn.classList.remove("live");
   micBtn.addEventListener("click", () => {
-    try {
-      rec.start();
-      micBtn.classList.add("live");
-    } catch (err) {
-      addLog("desk", "Mic did not start in this browser. Type instead.");
-    }
+    try { rec.start(); micBtn.classList.add("live"); }
+    catch { addLog("desk", "Mic did not start. Type instead."); q.focus(); }
   });
 } else {
   micBtn.addEventListener("click", () => {
@@ -220,27 +184,43 @@ if (Rec) {
   });
 }
 
-document.getElementById("bookForm").addEventListener("submit", (e) => {
+document.getElementById("bookForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const when = selectedSlot ? `${fmtDay(selectedSlot)} ${fmtTime(selectedSlot)} America/New_York` : "(no slot picked)";
-  const body = [
-    "Company AI Architect — discovery request from the desk",
-    `requested_slot: ${when}`,
-    `iso: ${selectedSlot ? new Date(selectedSlot).toISOString() : ""}`,
-    ...[...fd.entries()].map(([k, v]) => `${k}: ${v}`),
-  ].join("\n");
-  const href = "mailto:" + EMAIL + "?subject=" + encodeURIComponent("Desk booking: discovery") + "&body=" + encodeURIComponent(body);
-  window.location.href = href;
-  speak("I opened your mail app with the slot. Joshua confirms. Nothing is stored on this site.");
+  const payload = {
+    name: fd.get("name"),
+    email: fd.get("email"),
+    company: fd.get("company"),
+    pain: fd.get("pain"),
+    slotIso: selected ? selected.iso : "",
+  };
+  const btn = e.target.querySelector("button[type=submit]");
+  btn.disabled = true;
+  try {
+    const r = await fetch("/api/book", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) throw new Error(data.error || "book_failed");
+    speak("Request is in. Joshua confirms the time by email. Nothing else is stored on this page.");
+    addLog("desk", "Booking sent.");
+    hidePanels();
+    e.target.reset();
+    selected = null;
+  } catch (err) {
+    speak("The desk could not file that slot. Try again, or write joshua@hhinvestigations.com.");
+    addLog("desk", "Booking failed.");
+  } finally {
+    btn.disabled = false;
+  }
 });
 
-fetch("./availability.json")
+fetch("/api/slots")
   .then((r) => r.json())
-  .then((d) => { avail = d; })
-  .catch(() => { avail = { timezone: "America/New_York", slotMinutes: 30, hours: { start: 9, end: 17 }, weekdays: [1,2,3,4,5], rangeEnd: "2026-09-12", busy: [] }; });
+  .then((d) => { remoteSlots = d.slots || []; })
+  .catch(() => { remoteSlots = []; });
 
 speechSynthesis.onvoiceschanged = () => {};
-window.addEventListener("load", () => {
-  setTimeout(() => speak(LINES.hello), 400);
-});
+window.addEventListener("load", () => { setTimeout(() => speak(LINES.hello), 400); });
