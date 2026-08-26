@@ -1,0 +1,47 @@
+{
+  "timezone": "America/New_York",
+  "slotMinutes": 30,
+  "hours": {
+    "start": 9,
+    "end": 17
+  },
+  "weekdays": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "rangeEnd": "2026-09-12",
+  "busy": [
+    {
+      "start": "2026-08-26T09:00:00-04:00",
+      "end": "2026-09-01T00:00:00-04:00"
+    },
+    {
+      "start": "2026-09-01T09:00:00-04:00",
+      "end": "2026-09-01T13:00:00-04:00"
+    },
+    {
+      "start": "2026-09-02T09:00:00-04:00",
+      "end": "2026-09-02T13:00:00-04:00"
+    },
+    {
+      "start": "2026-09-03T09:00:00-04:00",
+      "end": "2026-09-03T13:00:00-04:00"
+    },
+    {
+      "start": "2026-09-04T09:00:00-04:00",
+      "end": "2026-09-04T13:00:00-04:00"
+    },
+    {
+      "start": "2026-09-04T16:00:00-04:00",
+      "end": "2026-09-04T16:15:00-04:00"
+    },
+    {
+      "start": "2026-09-11T16:00:00-04:00",
+      "end": "2026-09-11T16:15:00-04:00"
+    }
+  ],
+  "source": "Google Calendar primary free/busy fetched 2026-08-26. Slots hide names. Booking emails joshua@hhinvestigations.com \u2014 this static site cannot write the calendar."
+}

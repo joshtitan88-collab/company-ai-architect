@@ -432,3 +432,156 @@ footer .mark { margin: 0 0 .35rem; }
   * { scroll-behavior: auto !important; transition: none !important; }
   .stage-img { transform: none !important; }
 }
+
+
+/* Desk / receptionist */
+.desk {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+.desk-stage { position: absolute; inset: 0; }
+.desk-stage picture { position: absolute; inset: 0; }
+.desk-still {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  object-position: 50% 18%;
+  opacity: 1;
+  transition: opacity .55s ease;
+}
+.desk-still.speak { opacity: 0; }
+.desk.talking .desk-still.idle { opacity: 0; }
+.desk.talking .desk-still.speak { opacity: 1; }
+.desk-veil {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(5,6,15,.35) 0%, rgba(5,6,15,.15) 40%, rgba(5,6,15,.88) 100%);
+  pointer-events: none;
+}
+.desk-ui {
+  position: relative;
+  z-index: 3;
+  padding: 6.5rem 6vw 10rem;
+  max-width: 42rem;
+}
+.desk-ui .said {
+  font-family: var(--serif);
+  font-size: clamp(1.6rem, 3.4vw, 2.6rem);
+  line-height: 1.18;
+  margin: 0 0 1.4rem;
+  text-shadow: 0 10px 40px rgba(5,6,15,.7);
+  min-height: 4.5rem;
+}
+.desk-ui .hint { color: var(--muted); font-size: .92rem; max-width: 40ch; }
+
+.cal, .cards, .bookbox {
+  margin-top: 1.2rem;
+  background: rgba(5,8,18,.72);
+  border: 1px solid rgba(120,160,255,.18);
+  border-radius: 16px;
+  padding: 1.1rem 1.2rem 1.2rem;
+  backdrop-filter: blur(16px);
+  max-height: 46vh;
+  overflow: auto;
+}
+.hidden { display: none !important; }
+.cal h3, .cards h3, .bookbox h3 {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  margin: 0 0 .8rem;
+}
+.cal-days { display: flex; gap: .5rem; overflow-x: auto; padding-bottom: .6rem; }
+.cal-day {
+  flex: 0 0 auto;
+  border: 1px solid rgba(120,160,255,.2);
+  background: transparent;
+  color: var(--text);
+  border-radius: 12px;
+  padding: .55rem .7rem;
+  cursor: pointer;
+  min-width: 4.6rem;
+}
+.cal-day.on { border-color: var(--cyan); box-shadow: 0 0 20px rgba(34,211,238,.18); }
+.cal-day .d { display: block; font-size: .72rem; color: var(--muted); letter-spacing: .12em; text-transform: uppercase; }
+.cal-day .n { font-family: var(--serif); font-size: 1.3rem; }
+.slots { display: flex; flex-wrap: wrap; gap: .45rem; }
+.slot {
+  border: 1px solid rgba(34,211,238,.35);
+  background: rgba(34,211,238,.08);
+  color: var(--text);
+  border-radius: 999px;
+  padding: .4rem .75rem;
+  font-size: .88rem;
+  cursor: pointer;
+}
+.slot:hover, .slot.on { background: var(--cyan); color: #041018; }
+.cal .fine { margin-top: .8rem; }
+
+.cards article { margin: .7rem 0; color: var(--muted); }
+.cards strong { color: var(--text); }
+
+.bookbox label { display: grid; gap: .3rem; font-size: .82rem; color: var(--muted); margin: .55rem 0; }
+.bookbox input, .bookbox textarea {
+  background: #050813;
+  border: 1px solid #1e2844;
+  border-radius: 10px;
+  padding: .7rem .8rem;
+}
+.bookbox button {
+  margin-top: .5rem;
+  background: var(--cyan);
+  color: #041018;
+  border: 0;
+  border-radius: 999px;
+  padding: .8rem 1.2rem;
+  font-weight: 600;
+}
+
+.dock {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  z-index: 20;
+  padding: .8rem 6vw 1.1rem;
+  background: linear-gradient(180deg, transparent, rgba(5,6,15,.92) 28%);
+}
+.log {
+  max-width: 42rem;
+  max-height: 5.2rem;
+  overflow: auto;
+  font-size: .82rem;
+  color: var(--muted);
+  margin-bottom: .55rem;
+}
+.log div { margin: .15rem 0; }
+.log .you { color: var(--text); }
+.row {
+  display: flex; gap: .55rem; align-items: center;
+  max-width: 42rem;
+}
+.row input {
+  flex: 1;
+  background: #050813;
+  border: 1px solid #1e2844;
+  border-radius: 999px;
+  padding: .85rem 1rem;
+}
+.row button {
+  border: 1px solid rgba(255,255,255,.3);
+  background: transparent;
+  color: #fff;
+  border-radius: 999px;
+  padding: .75rem 1rem;
+  cursor: pointer;
+}
+.row button.primary { background: var(--cyan); color: #041018; border: 0; font-weight: 600; }
+.row button.live { border-color: var(--cyan); color: var(--cyan); }
+
+@media (max-width: 720px) {
+  .desk-ui { padding: 5.6rem 5vw 9rem; }
+  .desk-still { object-position: 50% 12%; }
+  .cal, .cards, .bookbox { max-height: 38vh; }
+  .dock { padding: .7rem 4vw 1rem; }
+  .row button.primary { padding: .75rem .9rem; }
+}
