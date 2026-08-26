@@ -1,26 +1,25 @@
-# Company AI Architect — public marketing site
+# Company AI Architect — public site
 
-Public funnel for the private AI audit product that runs on the tower (`/opt/ai-architect`, port **8787**).
+Canonical public company: **https://companyaiarchitect.com** (domain registered; DNS still on IONOS parking until pointed here).
+
+Working copies:
+
+- This repo (GitHub Pages): https://joshtitan88-collab.github.io/company-ai-architect/
+- Story mirror: `~/Projects/k3-architect-story/public/` → https://k3-architect-story.vercel.app
+
+Product engine stays LAN-only: http://192.168.1.201:8787/
 
 ## Local preview
 
 ```bash
 cd ~/Projects/company-ai-architect-site
 python3 -m http.server 4173
-# open http://127.0.0.1:4173
 ```
 
 ## Deploy
 
-Vercel project: `company-ai-architect` (team: Joshua Henry's projects).
-
 ```bash
-# re-deploy from this folder after edits
-npx vercel --prod --yes
+npx vercel --prod --yes --scope joshua-henry-s-projects
 ```
 
-## Notes
-
-- Product engine stays on the tower (LAN / Tailscale). This site is marketing + intake only.
-- Booking form opens a structured `mailto:` to `joshua@hhinvestigations.com`.
-- Sample case study uses the Acme HVAC demo engagement (synthetic).
+Contact remains `joshua@hhinvestigations.com` until a mailbox exists on the company domain. Keep IONOS MX if you add email later.

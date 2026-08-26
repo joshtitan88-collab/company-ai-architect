@@ -3,6 +3,8 @@ const img = document.querySelector(".stage-img");
 const path = document.querySelector(".filament path");
 const beats = [...document.querySelectorAll(".beat")];
 const cursor = document.querySelector(".cursor");
+const year = document.getElementById("year");
+if (year) year.textContent = String(new Date().getFullYear());
 const length = path ? path.getTotalLength() : 1800;
 if (path) {
   path.style.strokeDasharray = String(length);
@@ -32,6 +34,7 @@ tick();
 
 window.addEventListener("mousemove", (e) => {
   if (!cursor) return;
+  cursor.style.opacity = "1";
   cursor.style.left = e.clientX + "px";
   cursor.style.top = e.clientY + "px";
 });
