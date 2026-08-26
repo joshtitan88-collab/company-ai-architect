@@ -1,16 +1,16 @@
 # Deploy
 
 ## Canonical
-https://companyaiarchitect.com — registered at IONOS 2026-08-25. Currently parking on `74.208.236.247`.
+**https://www.companyaiarchitect.com** — van/lightning story site (Vercel project `company-ai-architect`).
 
-Point the domain at Vercel without touching MX (keep IONOS mail):
+Apex `companyaiarchitect.com` A records at IONOS:
+- `10.0.2.5`
+- `192.168.2.3`
+www CNAME → `cname.vercel-dns.com`
 
-- A `@` → `10.0.1.2`
-- CNAME `www` → `cname.vercel-dns.com`
+MX left on IONOS (`j.henry@companyaiarchitect.com` forwards). Do not switch nameservers unless you recreate mail on Vercel.
 
-Then: `vercel domains add companyaiarchitect.com`
-
-## Live now
+## Also live
 - GitHub Pages: https://joshtitan88-collab.github.io/company-ai-architect/
-- Vercel (company): https://company-ai-architect.vercel.app
-- Vercel (story alias): https://k3-architect-story.vercel.app
+- Vercel alias: https://company-ai-architect.vercel.app
+- Story alias: https://k3-architect-story.vercel.app
