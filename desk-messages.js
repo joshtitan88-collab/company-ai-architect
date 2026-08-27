@@ -112,23 +112,23 @@
 
   const LINES = {
     start:
-      "Of course. Tell me the message and I will get it to the right person. What should I pass along?",
-    need_more: "Go ahead — what would you like me to pass along?",
+      "Of course — I would be happy to pass that along. What would you like me to say?",
+    need_more: "Go ahead, I am listening — what would you like me to pass along?",
     need_name: "And who shall I say it is from?",
-    need_contact: "Where can they reach you — an email or a phone number?",
+    need_contact: "And what is the best way to reach you — an email or a phone number?",
     bad_contact:
-      "I did not catch a working email or phone number there. Could you give me one of those?",
+      "I did not quite catch a working email or phone number there — could you give me one of those?",
     confirm_prefix: "Let me read that back. ",
     confirm_suffix: " Shall I send it?",
-    sent: "Done. Your message is with {team}. They will reach you at the contact you gave me.",
-    sent_short: "Done. It is with the right person now.",
+    sent: "All set — your message is with {team}, and they will follow up at the contact you gave me.",
+    sent_short: "All set — it is with the right person now.",
     send_failed:
-      "I could not file that just now. You can email us directly and it will reach the same people.",
+      "I am sorry — I could not file that just now. If you email us directly it will reach the same people.",
     cancelled:
-      "No problem, I will drop that. Anything else — prices, privacy, or a free thirty minutes?",
-    already_sent: "That message already went through. Anything else I can do?",
+      "Of course, consider it dropped. Is there anything else I can help with — our packages, privacy, or a free thirty-minute discovery call?",
+    already_sent: "That message is already on its way. Is there anything else I can help with?",
     handoff_book:
-      "Even better — let us just get you on the calendar. Here are the open slots.",
+      "Even better — let us find you a time. Here are the open slots.",
   };
 
   // ---- department scoring (negation-aware) --------------------------------
