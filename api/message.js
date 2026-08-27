@@ -55,6 +55,7 @@ export default async function handler(req, res) {
 
   const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
   const name = String(body.name || "").trim().slice(0, 120);
+  const company = String(body.company || "").trim().slice(0, 120);
   const contact = String(body.contact || "").trim().slice(0, 160);
   const contactKind = body.contactKind === "phone" ? "phone" : "email";
   const message = String(body.message || "").trim().slice(0, 2000);
@@ -86,7 +87,7 @@ export default async function handler(req, res) {
   const md = [
     "Automated desk message from companyaiarchitect.com",
     "",
-    `- from: ${name}`,
+    `- from: ${name}${company ? ` (${company})` : ""}`,
     `- contact (${contactKind}): ${contact}`,
     `- team: ${team}`,
     `- owner: ${routes[team] || routes.general}`,
