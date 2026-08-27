@@ -1,0 +1,7 @@
+{
+  "voice": "eve",
+  "note": "Pre-render SamNLU.LINES and SamNLU.GREETING to {slug}.mp3. SamVoice.slug(text) is the filename. Greeting already at ../sam-hello-v2.mp3.",
+  "canned": {
+    "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?": "../sam-hello-v2.mp3"
+  }
+}

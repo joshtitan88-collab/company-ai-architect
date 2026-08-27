@@ -10,20 +10,27 @@ const hint = document.getElementById("hint");
 const enterBtn = document.getElementById("enter");
 const vidIdle = document.getElementById("vidIdle");
 const vidTalk = document.getElementById("vidTalk");
+const vidListen = document.getElementById("vidListen");
+const vidProcess = document.getElementById("vidProcess");
+const stateEl = document.getElementById("state");
+
 let remoteSlots = [];
 let selected = null;
 let started = false;
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const LINES = {
-  hello: "This is the desk we'd put in your shop. I pick up, I book, I don't send your customers to a chatbot. What's leaking hours — or do you want a free thirty minutes with Joshua?",
+  hello: "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?",
   capabilities: "You're already inside the product. Same idea on a tower or mini at your shop: calls, jobs, notes, on hardware you own. Not a ChatGPT login. Discovery is free. Want the calendar?",
   price: "Discovery is free. The written audit is one thousand five hundred. Architect plus a fourteen-day install starts at four thousand five hundred. You keep the map even if you stop after the audit.",
   privacy: "Customer files do not belong on this site. The discovery call does not need them. When we install, models stay on a tower, mini, or machine at your shop.",
   schedule: "Here are open discovery times in Eastern. Openings only — not who is on the book. Pick a slot.",
-  leak: "That's the leak. I catch it before it becomes a voicemail. Pick a free thirty minutes and Joshua will walk the shop with you.",
-  none: "You're talking to the install. Tell me the shop, or I'll put you on Joshua's calendar. Thirty minutes. Free.",
+  leak: "That's the leak. I catch it before it becomes a voicemail. Pick a free thirty minutes. I'll put it on the book.",
+  none: "I can book a discovery, quote the packages, or talk privacy. Thirty minutes. Free.",
 };
+const CLIPS = { [LINES.hello]: "./assets/sam-hello.mp4" };
+let mode = "idle";
+let processTimer = 0;
 
 function preferFemaleVoice() {
   const vs = speechSynthesis.getVoices();
@@ -38,57 +45,72 @@ function preferFemaleVoice() {
   return vs.slice().sort((a, b) => rank(b) - rank(a))[0] || null;
 }
 
-function playVid(el) {
+const VIDS = { idle: vidIdle, listen: vidListen, process: vidProcess, talk: vidTalk };
+
+function playVid(el, unmuted) {
   if (!el || reduceMotion) return;
+  el.muted = !unmuted;
   const p = el.play();
   if (p && p.catch) p.catch(() => {});
 }
 
 function armVideos() {
   const ok = (el) => el && el.readyState >= 2 && el.videoWidth > 0;
-  if (ok(vidIdle) || ok(vidTalk)) desk.classList.add("has-vid");
-  if (!reduceMotion) playVid(vidIdle);
+  if (ok(vidIdle) || ok(vidTalk) || ok(vidListen) || ok(vidProcess)) desk.classList.add("has-vid");
+  if (!reduceMotion) playVid(vidIdle, false);
 }
 
-function setMode(mode) {
-  desk.classList.remove("talking", "listening");
-  if (mode === "talk") desk.classList.add("talking");
-  if (mode === "listen") desk.classList.add("listening");
-  if (reduceMotion || !desk.classList.contains("has-vid")) return;
-  if (mode === "talk") {
-    if (vidTalk) vidTalk.currentTime = 0;
-    playVid(vidTalk);
-    if (vidIdle) vidIdle.pause();
-  } else {
-    playVid(vidIdle);
-    if (vidTalk) vidTalk.pause();
-  }
+function setStatus(label) {
+  if (stateEl) stateEl.textContent = label || "";
+}
+
+function setMode(next) {
+  mode = next;
+  desk.classList.remove("talking", "listening", "processing");
+  if (next === "talk") desk.classList.add("talking");
+  if (next === "listen") desk.classList.add("listening");
+  if (next === "process") desk.classList.add("processing");
+  setStatus(next === "listen" ? "Listening" : next === "process" ? "Working" : "");
+  if (reduceMotion) return;
+  const active = VIDS[next] || vidIdle;
+  Object.entries(VIDS).forEach(([k, el]) => {
+    if (!el) return;
+    if (el === active) playVid(el, k === "talk");
+    else { el.pause(); }
+  });
 }
 
 function speak(text) {
   said.textContent = text;
   if (hint) hint.classList.add("hidden");
-  if (!window.speechSynthesis) {
+  const clip = CLIPS[text];
+  if (clip && vidTalk) {
+    const src = vidTalk.querySelector("source");
+    if (src && !vidTalk.src.endsWith("sam-hello.mp4") && clip.indexOf("sam-hello") >= 0) {
+      vidTalk.src = clip;
+    }
+    vidTalk.onended = () => { vidTalk.onended = null; setMode("idle"); };
     setMode("talk");
-    setTimeout(() => setMode("idle"), Math.min(8000, 80 * text.length));
     return;
   }
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.rate = 0.96;
-  u.pitch = 1.02;
-  const v = preferFemaleVoice();
-  if (v) u.voice = v;
-  u.onstart = () => setMode("talk");
-  u.onend = () => setMode("idle");
-  u.onerror = () => setMode("idle");
-  speechSynthesis.speak(u);
+  setMode("talk");
+  setTimeout(() => { if (mode === "talk") setMode("idle"); }, Math.min(8000, 70 * text.length));
+}
+
+function receive(text) {
+  const t = (text || "").trim();
+  if (!t) return;
+  if (!started) begin();
+  addLog("you", t);
+  setMode("process");
+  clearTimeout(processTimer);
+  processTimer = setTimeout(() => handle(t), 800);
 }
 
 function addLog(who, text) {
   const d = document.createElement("div");
   d.className = who;
-  d.textContent = (who === "you" ? "You: " : "Desk: ") + text;
+  d.textContent = (who === "you" ? "You: " : "Sam: ") + text;
   logEl.appendChild(d);
   logEl.scrollTop = logEl.scrollHeight;
 }
@@ -155,7 +177,7 @@ function openBook() {
   bookEl.classList.remove("hidden");
   const when = selected ? `${fmtDay(selected.start)} at ${fmtTime(selected.start)} Eastern` : "a time we confirm";
   document.getElementById("slotLabel").textContent = when;
-  speak("Name, work email, shop. I send the slot to Joshua. He confirms. This board never shows who is booked.");
+  speak("Name, work email, shop. I take the slot. This board never shows who is booked.");
 }
 
 function handle(text) {
@@ -208,26 +230,29 @@ function begin() {
   enterBtn.classList.add("gone");
   desk.classList.add("live");
   armVideos();
-  speak(LINES.hello);
+  setMode("process");
+  setTimeout(() => speak(LINES.hello), 600);
   q.focus();
 }
 
 document.getElementById("send").addEventListener("click", () => {
-  handle(q.value);
+  receive(q.value);
   q.value = "";
 });
 q.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") { e.preventDefault(); handle(q.value); q.value = ""; }
+  if (e.key === "Enter") { e.preventDefault(); receive(q.value); q.value = ""; }
 });
+q.addEventListener("focus", () => { if (started && mode === "idle") setMode("listen"); });
+q.addEventListener("input", () => { if (started && mode !== "talk" && mode !== "process") setMode("listen"); });
 
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (Rec) {
   const rec = new Rec();
   rec.lang = "en-US";
   rec.interimResults = false;
-  rec.onresult = (e) => handle(e.results[0][0].transcript);
+  rec.onresult = (e) => receive(e.results[0][0].transcript);
   rec.onstart = () => { micBtn.classList.add("live"); setMode("listen"); };
-  rec.onend = () => { micBtn.classList.remove("live"); if (!speechSynthesis.speaking) setMode("idle"); };
+  rec.onend = () => { micBtn.classList.remove("live"); if (mode === "listen") setMode("process"); };
   micBtn.addEventListener("click", () => {
     if (!started) begin();
     try { rec.start(); }
@@ -244,11 +269,29 @@ if (Rec) {
 document.getElementById("bookForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+  const localConfirm = selected
+    ? new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(selected.start))
+    : "";
+  let idem = sessionStorage.getItem("caa_idem");
+  if (!idem) { idem = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()); sessionStorage.setItem("caa_idem", idem); }
+  if (!sessionStorage.getItem("caa_sid")) sessionStorage.setItem("caa_sid", (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()));
   const payload = {
+    idempotency_key: idem + (selected ? ":" + selected.iso : ""),
     name: fd.get("name"),
     email: fd.get("email"),
-    company: fd.get("company"),
-    pain: fd.get("pain"),
+    company: fd.get("company") || undefined,
+    phone: fd.get("phone") || undefined,
+    appointment: {
+      start_utc: selected ? selected.iso : "",
+      timezone: tz,
+      local_confirm: localConfirm,
+    },
+    summary: fd.get("pain"),
+    interest_level: "Medium",
+    highlights: [],
+    visitor_timezone_confirmed: true,
+    raw_session_id: sessionStorage.getItem("caa_sid") || "",
     slotIso: selected ? selected.iso : "",
   };
   const btn = e.target.querySelector("button[type=submit]");
@@ -260,14 +303,28 @@ document.getElementById("bookForm").addEventListener("submit", async (e) => {
       body: JSON.stringify(payload),
     });
     const data = await r.json().catch(() => ({}));
+    if (r.status === 409 && data.error === "slot_taken") {
+      speak("That time just filled. I can show what's still open.");
+      renderCal();
+      return;
+    }
+    if (r.status === 503 || data.error === "calendar_unavailable" || data.error === "intake_failed" || r.status === 502) {
+      speak("I've noted your interest, and someone will follow up within a few hours.");
+      return;
+    }
     if (!r.ok || !data.ok) throw new Error(data.error || "book_failed");
-    speak("Request is in. Joshua confirms the time by email. Nothing else is stored on this page.");
-    addLog("desk", "Booking sent.");
+    if (data.duplicate) {
+      speak("You're already on the book for that time.");
+      return;
+    }
+    setMode("process");
+    setTimeout(() => speak("You're set. You'll get a confirmation shortly. I'm glad we found a time."), 700);
+    addLog("desk", "Booked.");
     hidePanels();
     e.target.reset();
     selected = null;
   } catch (err) {
-    speak("The desk could not file that slot. Try again, or write joshua@hhinvestigations.com.");
+    speak("I could not file that slot. Try again.");
     addLog("desk", "Booking failed.");
   } finally {
     btn.disabled = false;
@@ -275,7 +332,7 @@ document.getElementById("bookForm").addEventListener("submit", async (e) => {
 });
 
 enterBtn.addEventListener("click", begin);
-["vidIdle", "vidTalk"].forEach((id) => {
+["vidIdle", "vidTalk", "vidListen", "vidProcess"].forEach((id) => {
   const el = document.getElementById(id);
   if (!el) return;
   el.addEventListener("loadeddata", armVideos);

@@ -38,7 +38,7 @@
   "use strict";
 
   const GREETING =
-    "Company AI Architect, this is Sam, the receptionist. How may I be of service today?";
+    "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?";
   // SAM.md: never a personal mailbox, never a specific person. Sam takes a
   // message (SamMessages) or books; routing happens server-side.
   const CONTACT = "";

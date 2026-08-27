@@ -1,0 +1,30 @@
+{
+  "name": "sam-receptionist",
+  "greeting_locked": "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?",
+  "timezone": "America/New_York",
+  "discovery_minutes": 30,
+  "prices": {
+    "discovery": 0,
+    "audit": 1500,
+    "architect_14day_from": 4500
+  },
+  "intents": [
+    "greet",
+    "who_are_you",
+    "what_you_do",
+    "price",
+    "privacy",
+    "pain_hours",
+    "book_discovery",
+    "reschedule",
+    "cancel",
+    "message_for_shop",
+    "press_partner",
+    "support_existing",
+    "abuse",
+    "out_of_scope"
+  ],
+  "queues": ["discovery", "audit", "client", "press", "privacy", "billing", "abuse"],
+  "tools": ["list_slots", "book_slot", "file_message", "quote_packages"],
+  "slots": ["visitor_name", "work_email", "shop_name", "trade", "pain", "slot_iso", "daypart", "queue", "payload"]
+}
