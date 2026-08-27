@@ -52,6 +52,12 @@ export default async function handler(req, res) {
   const idem = String(body.idempotencyKey || "").trim().slice(0, 80);
   const fitRaw = String(body.fit || "").trim().toLowerCase();
   const fit = ["high", "medium", "low"].includes(fitRaw) ? fitRaw : "";
+  const sessionId = String(body.sessionId || "").trim().slice(0, 64);
+  const apptType = String(body.type || "discovery").trim().slice(0, 40);
+  const durationRaw = Number(body.durationMinutes);
+  const durationMinutes = Number.isFinite(durationRaw)
+    ? Math.min(240, Math.max(5, Math.round(durationRaw)))
+    : 30;
 
   if (!name || !email || !company || !slotIso || !email.includes("@")) {
     return res.status(400).json({ error: "missing_fields" });
@@ -110,12 +116,41 @@ export default async function handler(req, res) {
     ...(idem ? [`- idem: ${idem}`] : []),
   ].join("\n");
 
+  // Structured handoff event — the Core Operator parses this JSON block,
+  // never the markdown above (SAM-BACKEND-ARCHITECTURE.md).
+  const handoffEvent = {
+    event_type: "appointment_booked",
+    timestamp: new Date().toISOString(),
+    lead: {
+      name,
+      email,
+      company,
+      ...(phone ? { phone } : {}),
+      source: "sam_website",
+    },
+    appointment: {
+      start_time_utc: slotUtc,
+      timezone: timezone || "America/New_York",
+      type: apptType,
+      duration_minutes: durationMinutes,
+      status: "booked",
+      created_by: "sam",
+    },
+    conversation_summary: summary || pain || "",
+    interest_level: fit || "medium",
+    ...(objections ? { objections } : {}),
+    ...(highlights ? { conversation_highlights: highlights } : {}),
+    ...(sessionId ? { raw_session_id: sessionId } : {}),
+  };
+  const mdWithEvent =
+    md + "\n\n## Handoff event\n\n```json\n" + JSON.stringify(handoffEvent, null, 2) + "\n```\n";
+
   const r = await gh(token, `/repos/${INTAKE_REPO}/issues`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       title,
-      body: md,
+      body: mdWithEvent,
       labels: ["desk-booking", "qualified-lead", ...(fit ? [`fit:${fit}`] : [])],
     }),
   });
