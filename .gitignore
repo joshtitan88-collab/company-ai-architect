@@ -3,3 +3,4 @@ dist/
 index.single.html
 .vercel
 .local-intake/
+assets/voice/.rendered-map.json

@@ -74,13 +74,35 @@ function parseJson(text) {
 
 const DEPTS = new Set(["sales", "technical", "billing", "privacy", "general"]);
 
-function sanitize(raw) {
+// Deterministic keyword routing — overrides a lazy "general" from the model.
+const DEPT_HINTS = {
+  billing: ["invoice", "bill", "billing", "payment", "refund", "receipt", "charge", "overcharged"],
+  technical: ["install", "hardware", "tower", "server", "gpu", "broken", "bug", "error", "not working", "reboot"],
+  sales: ["price", "pricing", "cost", "quote", "package", "buy", "discovery", "audit", "demo"],
+  privacy: ["privacy", "gdpr", "personal information", "delete my", "nda", "legal"],
+};
+function keywordDept(text) {
+  const t = String(text || "").toLowerCase();
+  let best = null, bestScore = 0;
+  for (const [dept, words] of Object.entries(DEPT_HINTS)) {
+    const score = words.reduce((n, w) => n + (t.includes(w) ? 1 : 0), 0);
+    if (score > bestScore) { best = dept; bestScore = score; }
+  }
+  return best;
+}
+
+function sanitize(raw, sourceText) {
   if (!raw || typeof raw !== "object") return null;
+  let department = DEPTS.has(raw.department) ? raw.department : "general";
+  if (department === "general") {
+    const kw = keywordDept(`${sourceText || ""} ${raw.message || ""}`);
+    if (kw) department = kw;
+  }
   return {
     ok: true,
     wants_message: Boolean(raw.wants_message),
     handoff_book: Boolean(raw.handoff_book),
-    department: DEPTS.has(raw.department) ? raw.department : "general",
+    department,
     message: String(raw.message || "").slice(0, 2000),
     name: String(raw.name || "").slice(0, 80),
     company: String(raw.company || "").slice(0, 80),
@@ -177,7 +199,7 @@ export default async function handler(req, res) {
 
   for (const attempt of attempts) {
     try {
-      const parsed = sanitize(await attempt());
+      const parsed = sanitize(await attempt(), text);
       if (parsed) return res.status(200).json(parsed);
     } catch {
       // provider down/misconfigured — try the next one

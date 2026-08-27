@@ -14,8 +14,10 @@
  *   canned mp3s + timed talk animation are the fallback (by design).
  */
 import http from "node:http";
-import { readFile, writeFile, mkdir, readdir } from "node:fs/promises";
+import { readFile, writeFile, mkdir, readdir, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { execFile } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import url from "node:url";
 
@@ -23,8 +25,8 @@ const ROOT = path.resolve(path.dirname(url.fileURLToPath(import.meta.url)), ".."
 const PORT = Number(process.env.PORT || 8788);
 const INTAKE_DIR = path.join(ROOT, ".local-intake");
 
-process.env.SAM_CHAT_MODEL = process.env.SAM_CHAT_MODEL || "mistral:latest";
-process.env.SAM_NLU_MODEL = process.env.SAM_NLU_MODEL || "mistral:latest";
+process.env.SAM_CHAT_MODEL = process.env.SAM_CHAT_MODEL || "qwen2.5:7b-instruct";
+process.env.SAM_NLU_MODEL = process.env.SAM_NLU_MODEL || "qwen2.5:7b-instruct";
 
 const MIME = {
   ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript",
@@ -85,9 +87,55 @@ function shimRes(res) {
   };
 }
 
+// ---- dev-only local speech-to-text (faster-whisper via clip-factory venv) --
+const STT_PY = "/home/joshua/Projects/clip-factory/.venv/bin/python";
+const STT_SCRIPT = `
+import sys
+from faster_whisper import WhisperModel
+m = WhisperModel('base', device='cpu', compute_type='int8')
+segments, info = m.transcribe(sys.argv[1])
+print(' '.join(s.text.strip() for s in segments).strip())
+`;
+
+async function sttRoute(req, res) {
+  if (req.method === "HEAD" || req.method === "GET") {
+    res.writeHead(existsSync(STT_PY) ? 200 : 501);
+    return res.end();
+  }
+  if (req.method !== "POST") { res.writeHead(405); return res.end('{"error":"method_not_allowed"}'); }
+  if (!existsSync(STT_PY)) {
+    res.writeHead(501, { "content-type": "application/json" });
+    return res.end('{"error":"stt_unavailable"}');
+  }
+  const chunks = [];
+  for await (const c of req) chunks.push(c);
+  const audio = Buffer.concat(chunks);
+  const ct = String(req.headers["content-type"] || "");
+  const ext = ct.includes("wav") ? ".wav" : ".webm";
+  const tmp = path.join(os.tmpdir(), `sam-stt-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+  await writeFile(tmp, audio);
+  try {
+    const text = await new Promise((resolve, reject) => {
+      execFile(STT_PY, ["-c", STT_SCRIPT, tmp], { timeout: 30000 }, (err, stdout, stderr) => {
+        if (err) return reject(new Error(stderr || err.message));
+        resolve(stdout.trim());
+      });
+    });
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true, text }));
+  } catch (err) {
+    console.error("[stt]", err.message);
+    res.writeHead(500, { "content-type": "application/json" });
+    res.end('{"error":"stt_failed"}');
+  } finally {
+    unlink(tmp).catch(() => {});
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://localhost:${PORT}`);
   try {
+    if (u.pathname === "/api/stt") return await sttRoute(req, res);
     if (u.pathname.startsWith("/api/")) {
       const name = u.pathname.slice(5).replace(/[^a-z0-9-]/g, "");
       const handler = await apiHandler(name);
@@ -110,7 +158,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, "127.0.0.1", () => {
   console.log(`[dev] Sam local test → http://localhost:${PORT}/receptionist.html`);
   console.log(`[dev] chat model: ${process.env.SAM_CHAT_MODEL} (Ollama ${process.env.OLLAMA_HOST || "127.0.0.1:11434"})`);
 });

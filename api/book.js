@@ -12,7 +12,38 @@
  *   fallback line instead of dead-ending.
  * - Observability: one structured log line per attempt and per outcome.
  */
+import { sendBookingConfirmation } from "./notify.js";
+
 const INTAKE_REPO = "joshtitan88-collab/company-ai-architect";
+
+// Per-IP rate limiter: max 5 booking POSTs per rolling minute.
+// In-memory, per-instance best-effort only — a multi-instance or serverless
+// deployment gets one bucket per warm instance, so this is abuse damping,
+// not a hard global guarantee.
+const RATE_LIMIT = 5;
+const RATE_WINDOW_MS = 60_000;
+const rateBuckets = new Map(); // ip -> [timestamps]
+
+function rateLimited(ip) {
+  const now = Date.now();
+  // Prune stale entries so the map doesn't grow unbounded.
+  for (const [k, times] of rateBuckets) {
+    const fresh = times.filter((t) => now - t < RATE_WINDOW_MS);
+    if (fresh.length === 0) rateBuckets.delete(k);
+    else rateBuckets.set(k, fresh);
+  }
+  const times = rateBuckets.get(ip) || [];
+  if (times.length >= RATE_LIMIT) return true;
+  times.push(now);
+  rateBuckets.set(ip, times);
+  return false;
+}
+
+function clientIp(req) {
+  const xff = req.headers && (req.headers["x-forwarded-for"] || req.headers["X-Forwarded-For"]);
+  if (xff) return String(xff).split(",")[0].trim() || "local";
+  return "local";
+}
 
 function gh(token, path, init) {
   return fetch(`https://api.github.com${path}`, {
@@ -36,6 +67,12 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "content-type");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "method" });
+
+  const ip = clientIp(req);
+  if (rateLimited(ip)) {
+    console.log(JSON.stringify({ evt: "book_rate_limited", ip }));
+    return res.status(429).json({ error: "rate_limited" });
+  }
 
   const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
   const name = String(body.name || "").trim();
@@ -160,5 +197,17 @@ export default async function handler(req, res) {
     return res.status(502).json({ error: "intake_failed", status: r.status });
   }
   console.log(JSON.stringify({ evt: "book_created", id: data.number, email, slotUtc, fit }));
+
+  // Fire-and-forget confirmation email: the booking must never wait on, or
+  // fail because of, the email path. sendBookingConfirmation never throws.
+  sendBookingConfirmation({ name, email, company, slotUtc, timezone })
+    .then((out) => {
+      console.log(JSON.stringify({ evt: "book_confirm_email", id: data.number, email, ...out }));
+    })
+    .catch((err) => {
+      // Belt-and-braces: notify contract is never-throw, but log anyway.
+      console.log(JSON.stringify({ evt: "book_confirm_email", id: data.number, email, ok: false, error: String(err && err.message || err) }));
+    });
+
   res.status(200).json({ ok: true, id: data.number });
 }

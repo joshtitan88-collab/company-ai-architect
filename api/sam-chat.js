@@ -211,7 +211,10 @@ async function chatOllama(prompt) {
         ],
       }),
     },
-    7000
+    // Cold model load + long system prompt can exceed 7s locally; Vercel
+    // never reaches this path (ollama skipped), so a generous local timeout
+    // costs production nothing.
+    Number(process.env.SAM_OLLAMA_TIMEOUT_MS || 30000)
   );
   if (!r.ok) throw new Error("ollama_" + r.status);
   const data = await r.json();

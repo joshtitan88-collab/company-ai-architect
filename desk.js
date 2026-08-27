@@ -32,6 +32,31 @@ const qual = SamQualify.createSession();
 
 const GREETING = SamNLU.GREETING;
 const GREETING_CLIP = "./assets/sam-imagine-speak.mp4"; // already lip-synced to GREETING
+const TALK_CLIP = "./assets/desk-talk.mp4"; // generic mouth motion for non-greeting lines
+
+let talkSrc = ""; // tracks vidTalk's current clip; only swap when different
+function setTalkClip(src, loop) {
+  if (!vidTalk) return;
+  if (talkSrc !== src) {
+    vidTalk.src = src;
+    talkSrc = src;
+  }
+  vidTalk.loop = !!loop;
+}
+
+// --- Returning-visitor memory ------------------------------------------------
+const VISITOR_KEY = "caa_visitor";
+function getVisitor() {
+  try {
+    const v = JSON.parse(localStorage.getItem(VISITOR_KEY) || "null");
+    return v && typeof v === "object" ? v : null;
+  } catch {
+    return null;
+  }
+}
+function saveVisitor(v) {
+  try { localStorage.setItem(VISITOR_KEY, JSON.stringify(v)); } catch {}
+}
 
 let mode = "idle";
 let processTimer = 0;
@@ -89,10 +114,17 @@ function speak(text) {
   if (text === GREETING && vidTalk && !reduceMotion) {
     // The greeting clip carries Sam's real voice — play it unmuted, skip TTS.
     vidTalk.dataset.ownAudio = "1";
-    if (!vidTalk.currentSrc.endsWith("sam-imagine-speak.mp4")) vidTalk.src = GREETING_CLIP;
+    setTalkClip(GREETING_CLIP, false);
     vidTalk.onended = () => { vidTalk.onended = null; vidTalk.dataset.ownAudio = ""; setMode("idle"); };
     setMode("talk");
     return;
+  }
+  if (vidTalk && !reduceMotion) {
+    // Generic mouth loop for every non-greeting line — muted, looping.
+    vidTalk.dataset.ownAudio = "";
+    vidTalk.onended = null;
+    setTalkClip(TALK_CLIP, true);
+    vidTalk.muted = true;
   }
   SamVoice.play(text);
 }
@@ -230,6 +262,15 @@ async function postBook(payload) {
     setMode("process");
     setTimeout(() => speak("You're set. You'll get a confirmation shortly. I'm glad we found a time."), 500);
     hidePanels();
+    // Remember the booking for returning visitors — before selected is cleared.
+    const slotLabelEl = document.getElementById("slotLabel");
+    saveVisitor({
+      seen: true,
+      lastBooking: {
+        slotLabel: slotLabelEl ? slotLabelEl.textContent : "",
+        iso: selected ? selected.iso : "",
+      },
+    });
     selected = null;
     return true;
   } catch {
@@ -283,7 +324,18 @@ function begin() {
   desk.classList.add("live");
   armVideos();
   setMode("process");
-  setTimeout(() => speak(GREETING), 400);
+  const visitor = getVisitor();
+  if (visitor && visitor.seen) {
+    let line = "Welcome back — good to see you again.";
+    const lb = visitor.lastBooking;
+    if (lb && lb.iso && new Date(lb.iso).getTime() > Date.now()) {
+      line += " You're on the book for " + lb.slotLabel + ". Anything else I can help with?";
+    }
+    setTimeout(() => speak(line), 400);
+  } else {
+    saveVisitor({ seen: true, lastBooking: (visitor && visitor.lastBooking) || null });
+    setTimeout(() => speak(GREETING), 400);
+  }
   q.focus();
 }
 
@@ -297,6 +349,33 @@ q.addEventListener("keydown", (e) => {
 q.addEventListener("focus", () => { if (started && mode === "idle") setMode("listen"); });
 q.addEventListener("input", () => { if (started && mode !== "talk" && mode !== "process") setMode("listen"); });
 
+// Whisper-backed fallback (local dev /api/stt) for browsers without
+// SpeechRecognition — records up to 6s, transcribes server-side.
+let sttBusy = false;
+async function sttFallback() {
+  if (sttBusy) return;
+  if (!window.SamSTT || !(await SamSTT.available())) {
+    addLog("sam", "This browser has no speech recognition — type and I'll help just the same.");
+    q.focus();
+    return;
+  }
+  sttBusy = true;
+  micBtn.classList.add("live");
+  setMode("listen");
+  try {
+    const text = await SamSTT.record({ maxMs: 6000 });
+    if (text && text.trim()) receive(text.trim());
+    else { setMode("idle"); addLog("sam", "I didn't quite catch that — type it and I'll help just the same."); }
+  } catch {
+    setMode("idle");
+    addLog("sam", "The mic did not start — type and I'll help just the same.");
+  } finally {
+    sttBusy = false;
+    micBtn.classList.remove("live");
+    q.focus();
+  }
+}
+
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
 if (Rec) {
   const rec = new Rec();
@@ -308,13 +387,12 @@ if (Rec) {
   micBtn.addEventListener("click", () => {
     if (!started) begin();
     try { rec.start(); }
-    catch { addLog("sam", "The mic did not start — type and I'll help just the same."); q.focus(); }
+    catch { sttFallback(); }
   });
 } else {
   micBtn.addEventListener("click", () => {
     if (!started) begin();
-    addLog("sam", "This browser has no speech recognition — type and I'll help just the same.");
-    q.focus();
+    sttFallback();
   });
 }
 
