@@ -6,17 +6,23 @@ const cardsEl = document.getElementById("cards");
 const bookEl = document.getElementById("bookbox");
 const desk = document.getElementById("desk");
 const micBtn = document.getElementById("mic");
-const hint = document.querySelector(".desk-ui .hint");
+const hint = document.getElementById("hint");
+const enterBtn = document.getElementById("enter");
+const vidIdle = document.getElementById("vidIdle");
+const vidTalk = document.getElementById("vidTalk");
 let remoteSlots = [];
 let selected = null;
+let started = false;
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const LINES = {
-  hello: "I'm the desk for Company AI Architect. Thirty minutes, free. Tell me the shop and what is leaking hours, or ask me to put a discovery on the calendar.",
-  capabilities: "We ingest how the shop actually runs, rank the work by hours back, and put a private stack on hardware you own. Not a ChatGPT login. Not a metered employee on your customers.",
+  hello: "This is the desk we'd put in your shop. I pick up, I book, I don't send your customers to a chatbot. What's leaking hours — or do you want a free thirty minutes with Joshua?",
+  capabilities: "You're already inside the product. Same idea on a tower or mini at your shop: calls, jobs, notes, on hardware you own. Not a ChatGPT login. Discovery is free. Want the calendar?",
   price: "Discovery is free. The written audit is one thousand five hundred. Architect plus a fourteen-day install starts at four thousand five hundred. You keep the map even if you stop after the audit.",
   privacy: "Customer files do not belong on this site. The discovery call does not need them. When we install, models stay on a tower, mini, or machine at your shop.",
   schedule: "Here are open discovery times in Eastern. Openings only — not who is on the book. Pick a slot.",
-  none: "I can book a discovery, explain the five-stage audit, quote the packages, or talk privacy. Speak or type.",
+  leak: "That's the leak. I catch it before it becomes a voicemail. Pick a free thirty minutes and Joshua will walk the shop with you.",
+  none: "You're talking to the install. Tell me the shop, or I'll put you on Joshua's calendar. Thirty minutes. Free.",
 };
 
 function preferFemaleVoice() {
@@ -32,18 +38,50 @@ function preferFemaleVoice() {
   return vs.slice().sort((a, b) => rank(b) - rank(a))[0] || null;
 }
 
+function playVid(el) {
+  if (!el || reduceMotion) return;
+  const p = el.play();
+  if (p && p.catch) p.catch(() => {});
+}
+
+function armVideos() {
+  const ok = (el) => el && el.readyState >= 2 && el.videoWidth > 0;
+  if (ok(vidIdle) || ok(vidTalk)) desk.classList.add("has-vid");
+  if (!reduceMotion) playVid(vidIdle);
+}
+
+function setMode(mode) {
+  desk.classList.remove("talking", "listening");
+  if (mode === "talk") desk.classList.add("talking");
+  if (mode === "listen") desk.classList.add("listening");
+  if (reduceMotion || !desk.classList.contains("has-vid")) return;
+  if (mode === "talk") {
+    if (vidTalk) vidTalk.currentTime = 0;
+    playVid(vidTalk);
+    if (vidIdle) vidIdle.pause();
+  } else {
+    playVid(vidIdle);
+    if (vidTalk) vidTalk.pause();
+  }
+}
+
 function speak(text) {
   said.textContent = text;
   if (hint) hint.classList.add("hidden");
-  if (!window.speechSynthesis) return;
+  if (!window.speechSynthesis) {
+    setMode("talk");
+    setTimeout(() => setMode("idle"), Math.min(8000, 80 * text.length));
+    return;
+  }
   speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance(text);
   u.rate = 0.96;
   u.pitch = 1.02;
   const v = preferFemaleVoice();
   if (v) u.voice = v;
-  u.onstart = () => desk.classList.add("talking");
-  u.onend = () => desk.classList.remove("talking");
+  u.onstart = () => setMode("talk");
+  u.onend = () => setMode("idle");
+  u.onerror = () => setMode("idle");
   speechSynthesis.speak(u);
 }
 
@@ -123,6 +161,7 @@ function openBook() {
 function handle(text) {
   const t = text.trim();
   if (!t) return;
+  if (!started) begin();
   addLog("you", t);
   const s = t.toLowerCase();
   hidePanels();
@@ -140,11 +179,16 @@ function handle(text) {
     ]);
     return;
   }
-  if (/privacy|data|chatgpt|leak|hipaa|pii/.test(s)) {
+  if (/privacy|data|chatgpt|leak|hipaa|pii/.test(s) && !/hours|dispatch|missed/.test(s)) {
     speak(LINES.privacy);
     return;
   }
-  if (/what do you|capabilit|how it work|pipeline|install|ai|agent/.test(s)) {
+  if (/shop|hvac|plumb|dispatch|hours|job|customer|missed|voicemail|front desk|reception|after.?hours/.test(s)) {
+    speak(LINES.leak);
+    renderCal();
+    return;
+  }
+  if (/what do you|capabilit|how it work|pipeline|install|ai|agent|what is this|who are you|product|demo/.test(s)) {
     speak(LINES.capabilities);
     showCards("Five stages", [
       { t: "01 Ingest", b: "How the shop actually runs." },
@@ -156,6 +200,16 @@ function handle(text) {
     return;
   }
   speak(LINES.none);
+}
+
+function begin() {
+  if (started) return;
+  started = true;
+  enterBtn.classList.add("gone");
+  desk.classList.add("live");
+  armVideos();
+  speak(LINES.hello);
+  q.focus();
 }
 
 document.getElementById("send").addEventListener("click", () => {
@@ -172,13 +226,16 @@ if (Rec) {
   rec.lang = "en-US";
   rec.interimResults = false;
   rec.onresult = (e) => handle(e.results[0][0].transcript);
-  rec.onend = () => micBtn.classList.remove("live");
+  rec.onstart = () => { micBtn.classList.add("live"); setMode("listen"); };
+  rec.onend = () => { micBtn.classList.remove("live"); if (!speechSynthesis.speaking) setMode("idle"); };
   micBtn.addEventListener("click", () => {
-    try { rec.start(); micBtn.classList.add("live"); }
+    if (!started) begin();
+    try { rec.start(); }
     catch { addLog("desk", "Mic did not start. Type instead."); q.focus(); }
   });
 } else {
   micBtn.addEventListener("click", () => {
+    if (!started) begin();
     addLog("desk", "This browser has no speech recognition. Type and I'll still book.");
     q.focus();
   });
@@ -217,10 +274,21 @@ document.getElementById("bookForm").addEventListener("submit", async (e) => {
   }
 });
 
+enterBtn.addEventListener("click", begin);
+["vidIdle", "vidTalk"].forEach((id) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener("loadeddata", armVideos);
+  el.addEventListener("canplay", armVideos);
+  el.addEventListener("error", () => {});
+});
+
 fetch("/api/slots")
   .then((r) => r.json())
   .then((d) => { remoteSlots = d.slots || []; })
   .catch(() => { remoteSlots = []; });
 
 speechSynthesis.onvoiceschanged = () => {};
-window.addEventListener("load", () => { setTimeout(() => speak(LINES.hello), 400); });
+if (!reduceMotion) {
+  vidIdle.addEventListener("canplay", () => playVid(vidIdle), { once: true });
+}

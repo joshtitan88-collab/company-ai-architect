@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Company AI Architect — Speak with the desk</title>
-  <meta name="description" content="A private-AI front desk for owner-operated shops. Talk or type. Book a free 30-minute discovery. Customer files stay off this site." />
+  <title>Company AI Architect — Talk to the desk</title>
+  <meta name="description" content="You're talking to the desk we'd install in your shop. Talk or type. Book a free 30-minute discovery. Hardware you own." />
   <link rel="canonical" href="https://companyaiarchitect.com/" />
   <meta name="theme-color" content="#05060f" />
   <meta property="og:title" content="Company AI Architect" />
-  <meta property="og:description" content="Talk to the desk. Book a discovery. Hardware you own." />
+  <meta property="og:description" content="This conversation is the product. Talk to the desk. Book a discovery. Hardware you own." />
   <meta property="og:image" content="https://companyaiarchitect.com/assets/desk.jpg" />
   <meta property="og:url" content="https://companyaiarchitect.com/" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%235b8cff'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3C/svg%3E" />
@@ -18,7 +18,7 @@
   <a class="skip" href="#q">Skip to the desk</a>
   <nav class="nav">
     <a class="mark" href="./">Company AI Architect</a>
-    <a class="nav-cta" href="#desk">Speak with the desk</a>
+    <a class="nav-cta" href="./privacy.html">Privacy</a>
   </nav>
 
   <main>
@@ -26,12 +26,18 @@
       <div class="desk-stage" aria-hidden="true">
         <img class="desk-still idle" src="./assets/desk.jpg" alt="" />
         <img class="desk-still speak" src="./assets/desk-speak.jpg" alt="" />
+        <video id="vidIdle" class="desk-vid idle" muted loop playsinline preload="auto" poster="./assets/desk.jpg">
+          <source src="./assets/desk-idle.mp4" type="video/mp4" />
+        </video>
+        <video id="vidTalk" class="desk-vid talk" muted loop playsinline preload="auto" poster="./assets/desk-speak.jpg">
+          <source src="./assets/desk-talk.mp4" type="video/mp4" />
+        </video>
         <div class="desk-veil"></div>
       </div>
       <div class="desk-ui">
-        <p class="kicker">The desk · talk or type</p>
-        <p class="said" id="said">I'm the desk for Company AI Architect.</p>
-        <p class="hint">Mic if you have one. Type if you don't. I book a free 30-minute discovery. This page does not store your message.</p>
+        <p class="kicker">The desk · this is the install</p>
+        <p class="said" id="said">You're talking to the desk we'd put in your shop.</p>
+        <p class="hint" id="hint">Tap once. Then talk or type. I book a free 30 minutes. This page does not keep your message.</p>
         <div id="calendar" class="cal hidden" aria-live="polite"></div>
         <div id="cards" class="cards hidden"></div>
         <div id="bookbox" class="bookbox hidden">
@@ -49,13 +55,19 @@
           <p class="fine">Files the slot to Joshua. He confirms by email. This board never shows who is booked.</p>
         </div>
       </div>
+      <button type="button" id="enter" class="enter">
+        <span class="enter-kicker">She's waiting</span>
+        <span class="enter-title">Talk to the desk</span>
+        <span class="enter-sub">Mic if you have one. Type if you don't.</span>
+      </button>
       <div class="dock">
         <div class="log" id="log"></div>
         <div class="row">
           <button type="button" id="mic" aria-label="Use microphone">Mic</button>
-          <input id="q" type="text" autocomplete="off" placeholder="Book a discovery, ask price, or say what the shop is leaking…" />
+          <input id="q" type="text" autocomplete="off" placeholder="What's leaking hours in the shop…" />
           <button type="button" class="primary" id="send">Send</button>
         </div>
+        <p class="dock-note">This conversation is the product. Hardware you own. Discovery free.</p>
       </div>
     </section>
   </main>
