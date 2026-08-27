@@ -2,3 +2,4 @@
 dist/
 index.single.html
 .vercel
+.local-intake/

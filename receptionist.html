@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sam — preview (closed)</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <nav class="nav">
+    <a class="mark" href="./">Company AI Architect</a>
+  </nav>
+  <main>
+    <section class="desk" id="desk">
+      <div class="desk-stage" aria-hidden="true">
+        <img class="desk-still idle" src="./assets/desk.jpg" alt="" />
+        <video id="vidIdle" class="desk-vid idle" muted loop playsinline preload="auto" poster="./assets/desk.jpg">
+          <source src="./assets/desk-idle.mp4" type="video/mp4" />
+        </video>
+        <video id="vidListen" class="desk-vid listen" muted loop playsinline preload="auto">
+          <source src="./assets/sam-listen.mp4" type="video/mp4" />
+        </video>
+        <video id="vidProcess" class="desk-vid process" muted loop playsinline preload="auto">
+          <source src="./assets/sam-process.mp4" type="video/mp4" />
+        </video>
+        <video id="vidTalk" class="desk-vid talk" playsinline preload="auto" poster="./assets/sam-imagine-still.jpg">
+          <source src="./assets/sam-imagine-speak.mp4" type="video/mp4" />
+        </video>
+        <div class="desk-veil"></div>
+      </div>
+      <div class="desk-ui">
+        <p class="kicker">Sam · receptionist</p>
+        <p class="state" id="state"></p>
+        <p class="said" id="said">Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?</p>
+        <p class="hint" id="hint">Preview only. Public homepage stays closed.</p>
+        <div id="calendar" class="cal hidden"></div>
+        <div id="cards" class="cards hidden"></div>
+        <div id="bookbox" class="bookbox hidden">
+          <h3>Hold that slot</h3>
+          <p class="fine">Requested: <span id="slotLabel"></span></p>
+          <form id="bookForm">
+            <label>Your name <input name="name" required /></label>
+            <label>Work email <input name="email" type="email" required /></label>
+            <label>Company <input name="company" required /></label>
+            <label>What should she take off your plate?<textarea name="pain" rows="3" required></textarea></label>
+            <button type="submit">Send the request</button>
+          </form>
+        </div>
+      </div>
+      <button type="button" id="enter" class="enter">
+        <span class="enter-kicker">She's waiting</span>
+        <span class="enter-title">Talk to Sam</span>
+        <span class="enter-sub">Mic if you have one. Type if you don't.</span>
+      </button>
+      <div class="dock">
+        <div class="log" id="log"></div>
+        <div class="row">
+          <button type="button" id="mic">Mic</button>
+          <input id="q" type="text" autocomplete="off" placeholder="What's leaking hours…" />
+          <button type="button" class="primary" id="send">Send</button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script src="./sam-voice.js"></script>
+  <script src="./desk-nlu.js"></script>
+  <script src="./desk-messages.js"></script>
+  <script src="./desk-qualify.js"></script>
+  <script src="./sam-states.js"></script>
+  <script src="./desk.js"></script>
+</body>
+</html>

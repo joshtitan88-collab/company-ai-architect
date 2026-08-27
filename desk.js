@@ -1,3 +1,10 @@
+/**
+ * desk.js — Sam's front desk, wired to the layered stack:
+ *   SamVoice (canned mp3 / server TTS) → SamNLU (conversation + booking)
+ *   → SamMessages (message intake + routing) → SamQualify (silent lead notes)
+ * Script order (receptionist.html): sam-voice > desk-nlu > desk-messages >
+ * desk-qualify > sam-states > desk.js. No browser speechSynthesis, ever.
+ */
 const said = document.getElementById("said");
 const logEl = document.getElementById("log");
 const q = document.getElementById("q");
@@ -19,31 +26,16 @@ let selected = null;
 let started = false;
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const LINES = {
-  hello: "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?",
-  capabilities: "You're already inside the product. Same idea on a tower or mini at your shop: calls, jobs, notes, on hardware you own. Not a ChatGPT login. Discovery is free. Want the calendar?",
-  price: "Discovery is free. The written audit is one thousand five hundred. Architect plus a fourteen-day install starts at four thousand five hundred. You keep the map even if you stop after the audit.",
-  privacy: "Customer files do not belong on this site. The discovery call does not need them. When we install, models stay on a tower, mini, or machine at your shop.",
-  schedule: "Here are open discovery times in Eastern. Openings only — not who is on the book. Pick a slot.",
-  leak: "That's the leak. I catch it before it becomes a voicemail. Pick a free thirty minutes. I'll put it on the book.",
-  none: "I can book a discovery, quote the packages, or talk privacy. Thirty minutes. Free.",
-};
-const CLIPS = { [LINES.hello]: "./assets/sam-hello.mp4" };
+const session = SamNLU.createSession();
+const msgSession = SamMessages.createSession();
+const qual = SamQualify.createSession();
+
+const GREETING = SamNLU.GREETING;
+const GREETING_CLIP = "./assets/sam-imagine-speak.mp4"; // already lip-synced to GREETING
+
 let mode = "idle";
 let processTimer = 0;
-
-function preferFemaleVoice() {
-  const vs = speechSynthesis.getVoices();
-  const rank = (v) => {
-    const n = (v.name + " " + v.lang).toLowerCase();
-    let s = 0;
-    if (v.lang.startsWith("en")) s += 4;
-    if (/female|woman|samantha|victoria|karen|moira|zira|susan|fiona|jenny|natural/.test(n)) s += 6;
-    if (/google|premium|neural/.test(n)) s += 2;
-    return s;
-  };
-  return vs.slice().sort((a, b) => rank(b) - rank(a))[0] || null;
-}
+let talkTimer = 0;
 
 const VIDS = { idle: vidIdle, listen: vidListen, process: vidProcess, talk: vidTalk };
 
@@ -75,26 +67,34 @@ function setMode(next) {
   const active = VIDS[next] || vidIdle;
   Object.entries(VIDS).forEach(([k, el]) => {
     if (!el) return;
-    if (el === active) playVid(el, k === "talk");
-    else { el.pause(); }
+    if (el === active) playVid(el, k === "talk" && el === vidTalk && vidTalk.dataset.ownAudio === "1");
+    else el.pause();
   });
 }
+
+// SamVoice drives the talk state; greeting plays its own lip-synced clip.
+window.addEventListener("samvoice:start", () => setMode("talk"));
+window.addEventListener("samvoice:end", () => { if (mode === "talk") setMode("idle"); });
+window.addEventListener("samvoice:unavailable", (e) => {
+  const len = (e && e.detail && e.detail.text ? e.detail.text.length : 80);
+  setMode("talk");
+  clearTimeout(talkTimer);
+  talkTimer = setTimeout(() => { if (mode === "talk") setMode("idle"); }, Math.min(8000, 80 * len));
+});
 
 function speak(text) {
   said.textContent = text;
   if (hint) hint.classList.add("hidden");
-  const clip = CLIPS[text];
-  if (clip && vidTalk) {
-    const src = vidTalk.querySelector("source");
-    if (src && !vidTalk.src.endsWith("sam-hello.mp4") && clip.indexOf("sam-hello") >= 0) {
-      vidTalk.src = clip;
-    }
-    vidTalk.onended = () => { vidTalk.onended = null; setMode("idle"); };
+  addLog("sam", text);
+  if (text === GREETING && vidTalk && !reduceMotion) {
+    // The greeting clip carries Sam's real voice — play it unmuted, skip TTS.
+    vidTalk.dataset.ownAudio = "1";
+    if (!vidTalk.currentSrc.endsWith("sam-imagine-speak.mp4")) vidTalk.src = GREETING_CLIP;
+    vidTalk.onended = () => { vidTalk.onended = null; vidTalk.dataset.ownAudio = ""; setMode("idle"); };
     setMode("talk");
     return;
   }
-  setMode("talk");
-  setTimeout(() => { if (mode === "talk") setMode("idle"); }, Math.min(8000, 70 * text.length));
+  SamVoice.play(text);
 }
 
 function receive(text) {
@@ -104,12 +104,12 @@ function receive(text) {
   addLog("you", t);
   setMode("process");
   clearTimeout(processTimer);
-  processTimer = setTimeout(() => handle(t), 800);
+  processTimer = setTimeout(() => handle(t), 400);
 }
 
 function addLog(who, text) {
   const d = document.createElement("div");
-  d.className = who;
+  d.className = who === "you" ? "you" : "sam";
   d.textContent = (who === "you" ? "You: " : "Sam: ") + text;
   logEl.appendChild(d);
   logEl.scrollTop = logEl.scrollHeight;
@@ -124,7 +124,9 @@ function hidePanels() {
 function showCards(title, items) {
   hidePanels();
   cardsEl.classList.remove("hidden");
-  cardsEl.innerHTML = `<h3>${title}</h3>` + items.map((it) => `<article><strong>${it.t}</strong> ${it.b}</article>`).join("");
+  cardsEl.innerHTML =
+    `<h3>${title}</h3>` +
+    items.map((it) => `<article><strong>${it.t}</strong> ${it.b}</article>`).join("");
 }
 
 function fmtDay(ts) {
@@ -140,8 +142,7 @@ function dayKey(ts) {
 function renderCal(focusDay) {
   const byDay = new Map();
   for (const s of remoteSlots) {
-    const t = s.start;
-    const k = dayKey(t);
+    const k = dayKey(s.start);
     if (!byDay.has(k)) byDay.set(k, []);
     byDay.get(k).push(s);
   }
@@ -168,6 +169,8 @@ function renderCal(focusDay) {
   calEl.querySelectorAll(".cal-day").forEach((b) => b.addEventListener("click", () => renderCal(b.dataset.day)));
   calEl.querySelectorAll(".slot").forEach((b) => b.addEventListener("click", () => {
     selected = { iso: b.dataset.iso, start: Number(b.dataset.ts) };
+    const follow = SamNLU.selectSlot(session, selected);
+    if (follow && follow.reply) speak(follow.reply);
     openBook();
   }));
 }
@@ -177,51 +180,100 @@ function openBook() {
   bookEl.classList.remove("hidden");
   const when = selected ? `${fmtDay(selected.start)} at ${fmtTime(selected.start)} Eastern` : "a time we confirm";
   document.getElementById("slotLabel").textContent = when;
-  speak("Name, work email, shop. I take the slot. This board never shows who is booked.");
 }
 
-function handle(text) {
-  const t = text.trim();
-  if (!t) return;
-  if (!started) begin();
-  addLog("you", t);
-  const s = t.toLowerCase();
+function idemKey() {
+  let idem = sessionStorage.getItem("caa_idem");
+  if (!idem) {
+    idem = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now());
+    sessionStorage.setItem("caa_idem", idem);
+  }
+  return idem + (selected ? ":" + selected.iso : "");
+}
+function sessionId() {
+  if (!sessionStorage.getItem("caa_sid")) {
+    sessionStorage.setItem("caa_sid", "sam_chat_" + ((crypto.randomUUID && crypto.randomUUID()) || Date.now()));
+  }
+  return sessionStorage.getItem("caa_sid");
+}
+
+async function postBook(payload) {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
+  const body = {
+    ...payload,
+    ...SamQualify.fields(qual),
+    timezone: tz,
+    idempotencyKey: idemKey(),
+    sessionId: sessionId(),
+  };
+  try {
+    const r = await fetch("/api/book", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (r.status === 409 && data.error === "slot_taken") {
+      speak("That time just filled. Here is what's still open.");
+      renderCal();
+      return false;
+    }
+    if (!r.ok || !data.ok) {
+      speak("I've noted your interest, and someone will follow up within a few hours.");
+      return false;
+    }
+    if (data.duplicate) {
+      speak("You're already on the book for that time.");
+      hidePanels();
+      return true;
+    }
+    setMode("process");
+    setTimeout(() => speak("You're set. You'll get a confirmation shortly. I'm glad we found a time."), 500);
+    hidePanels();
+    selected = null;
+    return true;
+  } catch {
+    speak("I could not file that slot just now. Try again, or leave me a message and someone will follow up.");
+    return false;
+  }
+}
+
+async function handle(text) {
   hidePanels();
-  if (/book|schedul|calendar|avail|slot|consult|discovery|call|appoint/.test(s)) {
-    speak(LINES.schedule);
-    renderCal();
+  SamQualify.observe(qual, text);
+
+  // Message intake wins while active or explicitly requested.
+  if (SamMessages.active(msgSession) || SamMessages.wants(text)) {
+    const turn = await SamMessages.turnSmart(msgSession, text);
+    speak(turn.reply);
+    if (turn.action === "handoff_book") { renderCal(); return; }
+    if (turn.action === "submit_message") {
+      try {
+        const r = await fetch("/api/message", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(turn.payload),
+        });
+        if (!r.ok) speak(SamMessages.LINES.send_failed);
+      } catch {
+        speak(SamMessages.LINES.send_failed);
+      }
+    }
     return;
   }
-  if (/price|cost|how much|\$|package|audit|4500|1500/.test(s)) {
-    speak(LINES.price);
-    showCards("Packages", [
-      { t: "Discovery · Free", b: "30 minutes. Fit check. You keep the notes." },
-      { t: "AI Opportunity Audit · $1,500", b: "One company, about a week. PDF, one-pager, ranked hours, 90-day plan." },
-      { t: "Architect + 14-day install · $4,500+", b: "Private package on hardware you own. Ride-along on real jobs." },
-    ]);
-    return;
+
+  const turn = await SamNLU.turn(session, text, { slots: remoteSlots });
+  speak(turn.reply);
+  if (turn.action === "show_calendar") renderCal();
+  if (turn.action === "show_packages") showCards("Packages", SamNLU.PACKAGES);
+  if (turn.action === "show_stages") showCards("Five stages", SamNLU.STAGES);
+  if (turn.action === "open_book") {
+    if (turn.slot) selected = turn.slot;
+    openBook();
   }
-  if (/privacy|data|chatgpt|leak|hipaa|pii/.test(s) && !/hours|dispatch|missed/.test(s)) {
-    speak(LINES.privacy);
-    return;
+  if (turn.action === "submit_book") {
+    await postBook(turn.payload || SamNLU.bookPayload(session));
   }
-  if (/shop|hvac|plumb|dispatch|hours|job|customer|missed|voicemail|front desk|reception|after.?hours/.test(s)) {
-    speak(LINES.leak);
-    renderCal();
-    return;
-  }
-  if (/what do you|capabilit|how it work|pipeline|install|ai|agent|what is this|who are you|product|demo/.test(s)) {
-    speak(LINES.capabilities);
-    showCards("Five stages", [
-      { t: "01 Ingest", b: "How the shop actually runs." },
-      { t: "02 Model", b: "Where notes live and where they leak." },
-      { t: "03 Rank", b: "Hours back, effort, hardware you own." },
-      { t: "04 Design", b: "Buy, integrate, or private local." },
-      { t: "05 Package", b: "You keep the map and the bundle." },
-    ]);
-    return;
-  }
-  speak(LINES.none);
 }
 
 function begin() {
@@ -231,7 +283,7 @@ function begin() {
   desk.classList.add("live");
   armVideos();
   setMode("process");
-  setTimeout(() => speak(LINES.hello), 600);
+  setTimeout(() => speak(GREETING), 400);
   q.focus();
 }
 
@@ -252,16 +304,16 @@ if (Rec) {
   rec.interimResults = false;
   rec.onresult = (e) => receive(e.results[0][0].transcript);
   rec.onstart = () => { micBtn.classList.add("live"); setMode("listen"); };
-  rec.onend = () => { micBtn.classList.remove("live"); if (mode === "listen") setMode("process"); };
+  rec.onend = () => { micBtn.classList.remove("live"); if (mode === "listen") setMode("idle"); };
   micBtn.addEventListener("click", () => {
     if (!started) begin();
     try { rec.start(); }
-    catch { addLog("desk", "Mic did not start. Type instead."); q.focus(); }
+    catch { addLog("sam", "The mic did not start — type and I'll help just the same."); q.focus(); }
   });
 } else {
   micBtn.addEventListener("click", () => {
     if (!started) begin();
-    addLog("desk", "This browser has no speech recognition. Type and I'll still book.");
+    addLog("sam", "This browser has no speech recognition — type and I'll help just the same.");
     q.focus();
   });
 }
@@ -269,66 +321,21 @@ if (Rec) {
 document.getElementById("bookForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
   const localConfirm = selected
     ? new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(selected.start))
     : "";
-  let idem = sessionStorage.getItem("caa_idem");
-  if (!idem) { idem = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()); sessionStorage.setItem("caa_idem", idem); }
-  if (!sessionStorage.getItem("caa_sid")) sessionStorage.setItem("caa_sid", (crypto.randomUUID && crypto.randomUUID()) || String(Date.now()));
-  const payload = {
-    idempotency_key: idem + (selected ? ":" + selected.iso : ""),
-    name: fd.get("name"),
-    email: fd.get("email"),
-    company: fd.get("company") || undefined,
-    phone: fd.get("phone") || undefined,
-    appointment: {
-      start_utc: selected ? selected.iso : "",
-      timezone: tz,
-      local_confirm: localConfirm,
-    },
-    summary: fd.get("pain"),
-    interest_level: "Medium",
-    highlights: [],
-    visitor_timezone_confirmed: true,
-    raw_session_id: sessionStorage.getItem("caa_sid") || "",
-    slotIso: selected ? selected.iso : "",
-  };
   const btn = e.target.querySelector("button[type=submit]");
   btn.disabled = true;
-  try {
-    const r = await fetch("/api/book", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const data = await r.json().catch(() => ({}));
-    if (r.status === 409 && data.error === "slot_taken") {
-      speak("That time just filled. I can show what's still open.");
-      renderCal();
-      return;
-    }
-    if (r.status === 503 || data.error === "calendar_unavailable" || data.error === "intake_failed" || r.status === 502) {
-      speak("I've noted your interest, and someone will follow up within a few hours.");
-      return;
-    }
-    if (!r.ok || !data.ok) throw new Error(data.error || "book_failed");
-    if (data.duplicate) {
-      speak("You're already on the book for that time.");
-      return;
-    }
-    setMode("process");
-    setTimeout(() => speak("You're set. You'll get a confirmation shortly. I'm glad we found a time."), 700);
-    addLog("desk", "Booked.");
-    hidePanels();
-    e.target.reset();
-    selected = null;
-  } catch (err) {
-    speak("I could not file that slot. Try again.");
-    addLog("desk", "Booking failed.");
-  } finally {
-    btn.disabled = false;
-  }
+  const ok = await postBook({
+    name: fd.get("name"),
+    email: fd.get("email"),
+    company: fd.get("company"),
+    pain: fd.get("pain"),
+    slotIso: selected ? selected.iso : "",
+    localConfirm,
+  });
+  if (ok) e.target.reset();
+  btn.disabled = false;
 });
 
 enterBtn.addEventListener("click", begin);
@@ -345,7 +352,6 @@ fetch("/api/slots")
   .then((d) => { remoteSlots = d.slots || []; })
   .catch(() => { remoteSlots = []; });
 
-speechSynthesis.onvoiceschanged = () => {};
 if (!reduceMotion) {
   vidIdle.addEventListener("canplay", () => playVid(vidIdle), { once: true });
 }
