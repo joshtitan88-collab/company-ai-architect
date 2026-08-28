@@ -31,13 +31,59 @@ export function openSlots(data, now = Date.now()) {
   return out;
 }
 
-export default function handler(req, res) {
+const INTAKE_REPO = "joshtitan88-collab/company-ai-architect";
+
+function field(issueBody, key) {
+  const m = String(issueBody || "").match(new RegExp(`^- ${key}: (.*)$`, "m"));
+  return m ? m[1].trim() : "";
+}
+
+// Returns a Set of booked slot start times (ms since epoch, UTC instants)
+// taken by open desk-booking intake issues. On any failure (no token, HTTP
+// error, network error) returns an empty Set so the calendar never breaks.
+export async function bookedStarts() {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token) {
+    console.log(JSON.stringify({ evt: "slots_booked_filter_skipped", reason: "no_token" }));
+    return new Set();
+  }
+  try {
+    const r = await fetch(
+      `https://api.github.com/repos/${INTAKE_REPO}/issues?labels=desk-booking&state=open&per_page=100`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+    if (!r.ok) {
+      console.log(JSON.stringify({ evt: "slots_booked_filter_skipped", reason: "http", status: r.status }));
+      return new Set();
+    }
+    const issues = await r.json();
+    const taken = new Set();
+    for (const issue of Array.isArray(issues) ? issues : []) {
+      const iSlot = field(issue.body, "slot_utc") || field(issue.body, "slot_iso");
+      const t = Date.parse(iSlot);
+      if (iSlot && !isNaN(t)) taken.add(t);
+    }
+    return taken;
+  } catch (e) {
+    console.log(JSON.stringify({ evt: "slots_booked_filter_skipped", reason: "fetch_failed" }));
+    return new Set();
+  }
+}
+
+export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).json({ error: "method" });
   try {
     const data = load();
-    const slots = openSlots(data);
+    const taken = await bookedStarts();
+    const slots = openSlots(data).filter((s) => !taken.has(s.start));
     res.status(200).json({ timezone: data.timezone, slotMinutes: data.slotMinutes, count: slots.length, slots });
   } catch (e) {
     res.status(500).json({ error: "slots_failed" });
