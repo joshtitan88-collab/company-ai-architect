@@ -11,6 +11,10 @@ const q = document.getElementById("q");
 const calEl = document.getElementById("calendar");
 const cardsEl = document.getElementById("cards");
 const bookEl = document.getElementById("bookbox");
+const depositEl = document.getElementById("depositbox");
+const depositBtn = document.getElementById("depositBtn");
+const depositStatus = document.getElementById("depositStatus");
+const googleCal = document.getElementById("googleCal");
 const desk = document.getElementById("desk");
 const micBtn = document.getElementById("mic");
 const hint = document.getElementById("hint");
@@ -23,11 +27,13 @@ const stateEl = document.getElementById("state");
 
 let remoteSlots = [];
 let selected = null;
+let depositConfig = { enabled: false, amount: 0 };
+let lastBooking = null;
 let started = false;
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const session = SamNLU.createSession();
-const msgSession = SamMessages.createSession();
+let session = SamNLU.createSession();
+let msgSession = SamMessages.createSession();
 const qual = SamQualify.createSession();
 
 const GREETING = SamNLU.GREETING;
@@ -61,6 +67,10 @@ function saveVisitor(v) {
 let mode = "idle";
 let processTimer = 0;
 let talkTimer = 0;
+let greetingTimer = 0;
+let deferredReplyTimer = 0;
+let turnNumber = 0;
+let turnController = null;
 
 const VIDS = { idle: vidIdle, listen: vidListen, process: vidProcess, talk: vidTalk };
 
@@ -100,6 +110,7 @@ function setMode(next) {
 // SamVoice drives the talk state; greeting plays its own lip-synced clip.
 window.addEventListener("samvoice:start", () => setMode("talk"));
 window.addEventListener("samvoice:end", () => { if (mode === "talk") setMode("idle"); });
+window.addEventListener("samvoice:cancel", () => { if (mode === "talk") setMode("idle"); });
 window.addEventListener("samvoice:unavailable", (e) => {
   const len = (e && e.detail && e.detail.text ? e.detail.text.length : 80);
   setMode("talk");
@@ -107,10 +118,35 @@ window.addEventListener("samvoice:unavailable", (e) => {
   talkTimer = setTimeout(() => { if (mode === "talk") setMode("idle"); }, Math.min(8000, 80 * len));
 });
 
-function speak(text) {
+function stopEverything(reason) {
+  clearTimeout(processTimer);
+  clearTimeout(talkTimer);
+  clearTimeout(greetingTimer);
+  clearTimeout(deferredReplyTimer);
+  if (turnController) {
+    try { turnController.abort(); } catch (_e) {}
+    turnController = null;
+  }
+  SamVoice.stop(reason || "interrupted");
+  if (window.SamAvatar && SamAvatar.active()) SamAvatar.stop();
+  if (vidTalk) {
+    vidTalk.onended = null;
+    vidTalk.dataset.ownAudio = "";
+    vidTalk.pause();
+    vidTalk.muted = true;
+  }
+}
+
+function speak(text, expectedTurn) {
+  if (expectedTurn != null && expectedTurn !== turnNumber) return;
+  SamVoice.stop("new_reply");
   said.textContent = text;
   if (hint) hint.classList.add("hidden");
   addLog("sam", text);
+  if (window.SamAvatar && SamAvatar.active()) {
+    SamAvatar.speak(text);
+    return;
+  }
   if (text === GREETING && vidTalk && !reduceMotion) {
     // The greeting clip carries Sam's real voice — play it unmuted, skip TTS.
     vidTalk.dataset.ownAudio = "1";
@@ -133,10 +169,12 @@ function receive(text) {
   const t = (text || "").trim();
   if (!t) return;
   if (!started) begin();
+  stopEverything("visitor_interrupt");
+  const myTurn = ++turnNumber;
+  turnController = typeof AbortController !== "undefined" ? new AbortController() : null;
   addLog("you", t);
   setMode("process");
-  clearTimeout(processTimer);
-  processTimer = setTimeout(() => handle(t), 400);
+  processTimer = setTimeout(() => handle(t, myTurn, turnController ? turnController.signal : null), 120);
 }
 
 function addLog(who, text) {
@@ -151,6 +189,7 @@ function hidePanels() {
   calEl.classList.add("hidden");
   cardsEl.classList.add("hidden");
   bookEl.classList.add("hidden");
+  depositEl.classList.add("hidden");
 }
 
 function showCards(title, items) {
@@ -256,12 +295,15 @@ async function postBook(payload) {
     }
     if (data.duplicate) {
       speak("You're already on the book for that time.");
-      hidePanels();
+      lastBooking = { ...payload, bookingId: data.id, slotIso: selected ? selected.iso : payload.slotIso };
+      selected = null;
+      showPostBooking();
       return true;
     }
     setMode("process");
-    setTimeout(() => speak("You're set. You'll get a confirmation shortly. I'm glad we found a time."), 500);
-    hidePanels();
+    const bookingTurn = turnNumber;
+    deferredReplyTimer = setTimeout(() => speak("You're set. You'll get a confirmation shortly. I'm glad we found a time.", bookingTurn), 500);
+    lastBooking = { ...payload, bookingId: data.id, slotIso: selected ? selected.iso : payload.slotIso };
     // Remember the booking for returning visitors — before selected is cleared.
     const slotLabelEl = document.getElementById("slotLabel");
     saveVisitor({
@@ -272,6 +314,7 @@ async function postBook(payload) {
       },
     });
     selected = null;
+    showPostBooking();
     return true;
   } catch {
     speak("I could not file that slot just now. Try again, or leave me a message and someone will follow up.");
@@ -279,14 +322,47 @@ async function postBook(payload) {
   }
 }
 
-async function handle(text) {
+function googleCalendarUrl(booking) {
+  if (!booking || !booking.slotIso) return "#";
+  const start = new Date(booking.slotIso);
+  const end = new Date(start.getTime() + 30 * 60_000);
+  const stamp = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
+  const p = new URLSearchParams({
+    action: "TEMPLATE",
+    text: "Company AI Architect discovery",
+    dates: `${stamp(start)}/${stamp(end)}`,
+    details: "Free 30-minute discovery with Company AI Architect.",
+    location: "Online",
+  });
+  return "https://calendar.google.com/calendar/render?" + p.toString();
+}
+
+function showPostBooking() {
+  hidePanels();
+  googleCal.href = googleCalendarUrl(lastBooking);
+  depositBtn.classList.toggle("hidden", !depositConfig.enabled);
+  depositStatus.textContent = depositConfig.enabled
+    ? `Optional deposit: $${(depositConfig.amount / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}.`
+    : "Your appointment is recorded. Deposit checkout is not enabled yet.";
+  depositEl.classList.remove("hidden");
+}
+
+function cloneState(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+async function handle(text, myTurn, signal) {
+  if (myTurn !== turnNumber || (signal && signal.aborted)) return;
   hidePanels();
   SamQualify.observe(qual, text);
 
   // Message intake wins while active or explicitly requested.
   if (SamMessages.active(msgSession) || SamMessages.wants(text)) {
-    const turn = await SamMessages.turnSmart(msgSession, text);
-    speak(turn.reply);
+    const nextMessageSession = cloneState(msgSession);
+    const turn = await SamMessages.turnSmart(nextMessageSession, text);
+    if (myTurn !== turnNumber || (signal && signal.aborted)) return;
+    msgSession = nextMessageSession;
+    speak(turn.reply, myTurn);
     if (turn.action === "handoff_book") { renderCal(); return; }
     if (turn.action === "submit_message") {
       try {
@@ -303,8 +379,12 @@ async function handle(text) {
     return;
   }
 
-  const turn = await SamNLU.turn(session, text, { slots: remoteSlots });
-  speak(turn.reply);
+  const nextSession = cloneState(session);
+  const turn = await SamNLU.turn(nextSession, text, { slots: remoteSlots, signal });
+  if (myTurn !== turnNumber || (signal && signal.aborted)) return;
+  session = nextSession;
+  turnController = null;
+  speak(turn.reply, myTurn);
   if (turn.action === "show_calendar") renderCal();
   if (turn.action === "show_packages") showCards("Packages", SamNLU.PACKAGES);
   if (turn.action === "show_stages") showCards("Five stages", SamNLU.STAGES);
@@ -317,13 +397,16 @@ async function handle(text) {
   }
 }
 
-function begin() {
+async function begin() {
   if (started) return;
   started = true;
   enterBtn.classList.add("gone");
   desk.classList.add("live");
   armVideos();
   setMode("process");
+  const openingTurn = turnNumber;
+  if (window.SamAvatar) await SamAvatar.start();
+  if (openingTurn !== turnNumber) return;
   const visitor = getVisitor();
   if (visitor && visitor.seen) {
     let line = "Welcome back — good to see you again.";
@@ -331,10 +414,10 @@ function begin() {
     if (lb && lb.iso && new Date(lb.iso).getTime() > Date.now()) {
       line += " You're on the book for " + lb.slotLabel + ". Anything else I can help with?";
     }
-    setTimeout(() => speak(line), 400);
+    greetingTimer = setTimeout(() => speak(line), 250);
   } else {
     saveVisitor({ seen: true, lastBooking: (visitor && visitor.lastBooking) || null });
-    setTimeout(() => speak(GREETING), 400);
+    greetingTimer = setTimeout(() => speak(GREETING), 250);
   }
   q.focus();
 }
@@ -382,7 +465,7 @@ if (Rec) {
   rec.lang = "en-US";
   rec.interimResults = false;
   rec.onresult = (e) => receive(e.results[0][0].transcript);
-  rec.onstart = () => { micBtn.classList.add("live"); setMode("listen"); };
+  rec.onstart = () => { stopEverything("visitor_barge_in"); turnNumber += 1; micBtn.classList.add("live"); setMode("listen"); };
   rec.onend = () => { micBtn.classList.remove("live"); if (mode === "listen") setMode("idle"); };
   micBtn.addEventListener("click", () => {
     if (!started) begin();
@@ -407,6 +490,7 @@ document.getElementById("bookForm").addEventListener("submit", async (e) => {
   const ok = await postBook({
     name: fd.get("name"),
     email: fd.get("email"),
+    phone: fd.get("phone"),
     company: fd.get("company"),
     pain: fd.get("pain"),
     slotIso: selected ? selected.iso : "",
@@ -414,6 +498,25 @@ document.getElementById("bookForm").addEventListener("submit", async (e) => {
   });
   if (ok) e.target.reset();
   btn.disabled = false;
+});
+
+depositBtn.addEventListener("click", async () => {
+  if (!lastBooking || !depositConfig.enabled) return;
+  depositBtn.disabled = true;
+  depositStatus.textContent = "Opening secure Stripe checkout…";
+  try {
+    const r = await fetch("/api/deposit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(lastBooking),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.url) throw new Error("checkout");
+    window.location.assign(data.url);
+  } catch {
+    depositStatus.textContent = "Checkout could not open. Your discovery appointment is still booked.";
+    depositBtn.disabled = false;
+  }
 });
 
 enterBtn.addEventListener("click", begin);
@@ -429,6 +532,11 @@ fetch("/api/slots")
   .then((r) => r.json())
   .then((d) => { remoteSlots = d.slots || []; })
   .catch(() => { remoteSlots = []; });
+
+fetch("/api/deposit")
+  .then((r) => r.json())
+  .then((d) => { depositConfig = d && d.enabled ? d : depositConfig; })
+  .catch(() => {});
 
 if (!reduceMotion) {
   vidIdle.addEventListener("canplay", () => playVid(vidIdle), { once: true });

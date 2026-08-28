@@ -442,6 +442,18 @@ footer .mark { margin: 0 0 .35rem; }
   overflow: hidden;
 }
 .desk-stage { position: absolute; inset: 0; }
+.live-avatar {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  background: #05060f;
+  transition: opacity .35s ease;
+}
+.live-avatar.active { opacity: 1; }
+.avatar-live .desk-vid, .avatar-live .desk-still { opacity: 0 !important; }
+.avatar-live .desk-veil { z-index: 3; }
 .desk-stage picture { position: absolute; inset: 0; }
 .desk-still, .desk-vid {
   position: absolute; inset: 0;
@@ -508,7 +520,7 @@ footer .mark { margin: 0 0 .35rem; }
 }
 .desk-ui {
   position: relative;
-  z-index: 3;
+  z-index: 4;
   padding: 6.5rem 6vw 10rem;
   max-width: 42rem;
 }
@@ -522,7 +534,7 @@ footer .mark { margin: 0 0 .35rem; }
 }
 .desk-ui .hint { color: var(--muted); font-size: .92rem; max-width: 40ch; }
 
-.cal, .cards, .bookbox {
+.cal, .cards, .bookbox, .depositbox {
   margin-top: 1.2rem;
   background: rgba(5,8,18,.72);
   border: 1px solid rgba(120,160,255,.18);
@@ -533,7 +545,7 @@ footer .mark { margin: 0 0 .35rem; }
   overflow: auto;
 }
 .hidden { display: none !important; }
-.cal h3, .cards h3, .bookbox h3 {
+.cal h3, .cards h3, .bookbox h3, .depositbox h3 {
   font-family: var(--serif);
   font-size: 1.35rem;
   margin: 0 0 .8rem;
@@ -584,6 +596,16 @@ footer .mark { margin: 0 0 .35rem; }
   padding: .8rem 1.2rem;
   font-weight: 600;
 }
+.deposit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .7rem; margin-top: 1rem; }
+.deposit-actions button, .deposit-actions a {
+  border: 1px solid rgba(34,211,238,.5);
+  background: rgba(34,211,238,.1);
+  color: var(--text);
+  border-radius: 999px;
+  padding: .72rem 1rem;
+  cursor: pointer;
+}
+.deposit-actions button { background: var(--cyan); color: #041018; border: 0; font-weight: 600; }
 
 .dock {
   position: fixed;
