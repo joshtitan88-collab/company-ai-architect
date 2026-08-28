@@ -159,7 +159,7 @@ ol, ul { margin: 0; }
   justify-content: flex-end;
 }
 .beat.on {
-  opacity: 1;
+  opacity: 0;
   visibility: visible;
   pointer-events: auto;
   z-index: 4;
@@ -452,10 +452,14 @@ footer .mark { margin: 0 0 .35rem; }
   transition: opacity .45s ease, transform .7s ease, filter .45s ease;
 }
 .desk-still.speak, .desk-vid.talk { opacity: 0; }
+.desk:not(.has-vid) .desk-still.idle { opacity: 1; }
 .desk.talking .desk-still.idle { opacity: 0; }
 .desk.talking .desk-still.speak { opacity: 1; }
 .desk.has-vid .desk-still { opacity: 0; }
 .desk.has-vid .desk-vid.idle { opacity: 1; }
+.desk.has-vid.listening .desk-vid.idle,
+.desk.has-vid.talking .desk-vid.idle { opacity: 0; }
+.desk.has-vid.listening .desk-vid.listen { opacity: 1; }
 .desk.has-vid.talking .desk-vid.idle { opacity: 0; }
 .desk.has-vid.talking .desk-vid.talk { opacity: 1; }
 .desk.listening .desk-vid, .desk.listening .desk-still {

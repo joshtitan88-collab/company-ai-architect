@@ -13,7 +13,7 @@
  *                    Values land in the issue body as "owner:" so the intake
  *                    workflow (or a human) knows who the message is for.
  */
-const INTAKE_REPO = "joshtitan88-collab/company-ai-architect";
+import { verifyPrivateIntake } from "./private-intake.js";
 
 const DEFAULT_ROUTES = {
   sales: "owner",
@@ -81,7 +81,11 @@ export default async function handler(req, res) {
   }
 
   const token = process.env.GITHUB_TOKEN;
-  if (!token) return res.status(500).json({ error: "not_configured" });
+  const intake = await verifyPrivateIntake(token);
+  if (!intake.ok) {
+    console.log(JSON.stringify({ evt: "message_blocked", reason: intake.error }));
+    return res.status(503).json({ error: intake.error });
+  }
 
   const title = `desk-message ${team}${urgent ? " URGENT" : ""} from ${name}`.slice(0, 180);
   const md = [
@@ -102,7 +106,7 @@ export default async function handler(req, res) {
   const labels = ["desk-message", `route:${team}`];
   if (urgent) labels.push("priority-high");
 
-  const r = await fetch(`https://api.github.com/repos/${INTAKE_REPO}/issues`, {
+  const r = await fetch(`https://api.github.com/repos/${intake.repo}/issues`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

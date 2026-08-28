@@ -1,6 +1,6 @@
 # Sam voice assets (Eve)
 
-xAI TTS `voice_id=eve`, `language=en`, MP3. Do **not** call the live TTS API until Joshua confirms (paid). Do **not** put `XAI_API_KEY` in the browser.
+xAI TTS `voice_id=eve`, `language=en`, MP3. Do not put `XAI_API_KEY` in the browser.
 
 Public site stays closed (`index.html` title: “Sam is offline”) until critics pass.
 
@@ -8,14 +8,7 @@ Public site stays closed (`index.html` title: “Sam is offline”) until critic
 
 Function reads `process.env.XAI_API_KEY` only.
 
-As of 2026-08-27:
-
-- Tower shell: **absent**
-- Vercel project `company-ai-architect` (`prj_C22GLMaAGoNt1XPEdvbKbjqV4Lm8`): **absent** (only `GITHUB_TOKEN` is set)
-- `~/.config/xai/create-key-response.json`: error payload, not a live key
-- Grok OAuth session in `~/.grok/auth.json` is **not** an API key — do not reuse it for TTS
-
-Joshua must set Vercel env `XAI_API_KEY` (Preview + Production) himself. Do not create or spend keys from this seat.
+Set `XAI_API_KEY` only in the deployment environment. Do not create, expose, or reuse unrelated credentials for TTS.
 
 ## LINES → static files
 

@@ -13,8 +13,7 @@
  * - Observability: one structured log line per attempt and per outcome.
  */
 import { sendBookingConfirmation } from "./notify.js";
-
-const INTAKE_REPO = "joshtitan88-collab/company-ai-architect";
+import { verifyPrivateIntake } from "./private-intake.js";
 
 // Per-IP rate limiter: max 5 booking POSTs per rolling minute.
 // In-memory, per-instance best-effort only — a multi-instance or serverless
@@ -104,13 +103,18 @@ export default async function handler(req, res) {
   const slotUtc = slotDate.toISOString();
 
   const token = process.env.GITHUB_TOKEN;
-  if (!token) return res.status(500).json({ error: "not_configured" });
+  const intake = await verifyPrivateIntake(token);
+  if (!intake.ok) {
+    console.log(JSON.stringify({ evt: "book_blocked", reason: intake.error }));
+    return res.status(503).json({ error: intake.error });
+  }
+  const intakeRepo = intake.repo;
 
   console.log(JSON.stringify({ evt: "book_attempt", email, slotUtc, timezone, fit, idem: Boolean(idem) }));
 
   // Idempotency + double-booking: open desk-booking issues are the live truth.
   try {
-    const list = await gh(token, `/repos/${INTAKE_REPO}/issues?labels=desk-booking&state=open&per_page=100`);
+    const list = await gh(token, `/repos/${intakeRepo}/issues?labels=desk-booking&state=open&per_page=100`);
     if (list.ok) {
       const issues = await list.json();
       for (const issue of issues) {
@@ -182,7 +186,7 @@ export default async function handler(req, res) {
   const mdWithEvent =
     md + "\n\n## Handoff event\n\n```json\n" + JSON.stringify(handoffEvent, null, 2) + "\n```\n";
 
-  const r = await gh(token, `/repos/${INTAKE_REPO}/issues`, {
+  const r = await gh(token, `/repos/${intakeRepo}/issues`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({

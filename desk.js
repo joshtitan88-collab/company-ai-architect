@@ -62,7 +62,8 @@ let mode = "idle";
 let processTimer = 0;
 let talkTimer = 0;
 
-const VIDS = { idle: vidIdle, listen: vidListen, process: vidProcess, talk: vidTalk };
+// Processing stays visibly alive instead of exposing a paused processing frame.
+const VIDS = { idle: vidIdle, listen: vidListen, process: vidIdle, talk: vidTalk };
 
 function playVid(el, unmuted) {
   if (!el || reduceMotion) return;
@@ -90,10 +91,10 @@ function setMode(next) {
   setStatus(next === "listen" ? "Listening" : next === "process" ? "Working" : "");
   if (reduceMotion) return;
   const active = VIDS[next] || vidIdle;
+  playVid(active, next === "talk" && active === vidTalk && vidTalk.dataset.ownAudio === "1");
   Object.entries(VIDS).forEach(([k, el]) => {
     if (!el) return;
-    if (el === active) playVid(el, k === "talk" && el === vidTalk && vidTalk.dataset.ownAudio === "1");
-    else el.pause();
+    if (el !== active) setTimeout(() => { if (VIDS[mode] !== el) el.pause(); }, 500);
   });
 }
 

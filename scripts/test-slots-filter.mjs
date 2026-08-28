@@ -17,11 +17,15 @@ const mkRes = () => ({
 });
 
 process.env.GITHUB_TOKEN = "test-token-not-real";
+process.env.INTAKE_REPO = "example/private-intake";
 const realFetch = global.fetch;
 
 // --- Case 1: two fake open issues book two slots -> both removed ---
 global.fetch = async (url, init) => {
-  assert(String(url).includes("/repos/joshtitan88-collab/company-ai-architect/issues"), "wrong URL: " + url);
+  if (String(url).endsWith("/repos/example/private-intake")) {
+    return { ok: true, status: 200, json: async () => ({ private: true }) };
+  }
+  assert(String(url).includes("/repos/example/private-intake/issues"), "wrong URL: " + url);
   assert(String(url).includes("labels=desk-booking") && String(url).includes("state=open"), "missing filters");
   assert(init.headers.Authorization.startsWith("Bearer "), "missing auth header");
   return {
@@ -61,6 +65,7 @@ console.log("PASS case3: http 403 serves all slots");
 
 // --- Case 4: token missing -> all slots served, no fetch call ---
 delete process.env.GITHUB_TOKEN;
+delete process.env.INTAKE_REPO;
 global.fetch = async () => { throw new Error("should not be called"); };
 res = mkRes();
 await handler({ method: "GET" }, res);

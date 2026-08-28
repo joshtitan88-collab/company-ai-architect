@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { verifyPrivateIntake } from "./private-intake.js";
 
 function load() {
   return JSON.parse(readFileSync(join(process.cwd(), "availability.json"), "utf8"));
@@ -31,8 +32,6 @@ export function openSlots(data, now = Date.now()) {
   return out;
 }
 
-const INTAKE_REPO = "joshtitan88-collab/company-ai-architect";
-
 function field(issueBody, key) {
   const m = String(issueBody || "").match(new RegExp(`^- ${key}: (.*)$`, "m"));
   return m ? m[1].trim() : "";
@@ -43,13 +42,14 @@ function field(issueBody, key) {
 // error, network error) returns an empty Set so the calendar never breaks.
 export async function bookedStarts() {
   const token = process.env.GITHUB_TOKEN;
-  if (!token) {
-    console.log(JSON.stringify({ evt: "slots_booked_filter_skipped", reason: "no_token" }));
+  const intake = await verifyPrivateIntake(token);
+  if (!intake.ok) {
+    console.log(JSON.stringify({ evt: "slots_booked_filter_skipped", reason: intake.error }));
     return new Set();
   }
   try {
     const r = await fetch(
-      `https://api.github.com/repos/${INTAKE_REPO}/issues?labels=desk-booking&state=open&per_page=100`,
+      `https://api.github.com/repos/${intake.repo}/issues?labels=desk-booking&state=open&per_page=100`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

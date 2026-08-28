@@ -2,12 +2,16 @@
 import assert from "node:assert";
 
 process.env.GITHUB_TOKEN = "fake-token-for-test";
+process.env.INTAKE_REPO = "example/private-intake";
 delete process.env.RESEND_API_KEY;
 
 const calls = []; // record of mocked fetch calls
 globalThis.fetch = async (url, init = {}) => {
   calls.push({ url: String(url), init });
   const u = String(url);
+  if (u.endsWith("/repos/example/private-intake")) {
+    return { ok: true, status: 200, json: async () => ({ private: true }) };
+  }
   if (u.includes("api.github.com") && u.includes("/issues?")) {
     return { ok: true, status: 200, json: async () => [] };
   }
