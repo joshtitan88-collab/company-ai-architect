@@ -5,6 +5,10 @@
  *
  * Order: canned map → assets/voice/{slug}.mp3 → POST /api/tts (eve on the server).
  * Events on window: samvoice:start | samvoice:end | samvoice:error | samvoice:unavailable
+ *   samvoice:start detail: { text, audio } — audio is the playing HTMLAudioElement.
+ *
+ * Successful /api/tts responses are cached (text -> blob objectURL, ~40 entries,
+ * oldest evicted) so repeated dynamic lines replay instantly.
  *
  * Pre-render canned lines to assets/voice/{SamVoice.slug(text)}.mp3
  * Locked greeting already lives at assets/sam-hello.mp3
@@ -20,7 +24,38 @@
   CANNED["hello"] = "./assets/sam-hello-v2.mp3";
 
   let current = null;
-  let objectUrl = null;
+
+  // ---- TTS blob cache: text -> objectURL --------------------------------
+  const TTS_CACHE_MAX = 40;
+  const ttsCache = new Map();
+
+  function cacheGet(text) {
+    if (!ttsCache.has(text)) return null;
+    const url = ttsCache.get(text);
+    // refresh recency so hot lines survive eviction
+    ttsCache.delete(text);
+    ttsCache.set(text, url);
+    return url;
+  }
+
+  function cacheDelete(text) {
+    const url = ttsCache.get(text);
+    if (url) {
+      ttsCache.delete(text);
+      try {
+        URL.revokeObjectURL(url);
+      } catch (_e) {}
+    }
+  }
+
+  function cachePut(text, url) {
+    cacheDelete(text);
+    ttsCache.set(text, url);
+    while (ttsCache.size > TTS_CACHE_MAX) {
+      const oldest = ttsCache.keys().next().value;
+      cacheDelete(oldest);
+    }
+  }
 
   function slug(text) {
     return String(text || "")
@@ -44,12 +79,7 @@
       } catch (_e) {}
       current = null;
     }
-    if (objectUrl) {
-      try {
-        URL.revokeObjectURL(objectUrl);
-      } catch (_e) {}
-      objectUrl = null;
-    }
+    // Cached objectURLs are owned by ttsCache; only eviction revokes them.
   }
 
   function playUrl(url) {
@@ -109,11 +139,11 @@
     const t = String(text || "").trim();
     if (!t) return;
     stop();
-    emit("samvoice:start", { text: t });
     const asset = cannedUrl(t);
     try {
       const a = await playUrl(asset);
       current = a;
+      emit("samvoice:start", { text: t, audio: a });
       await waitEnd(a);
       if (current === a) {
         current = null;
@@ -124,10 +154,23 @@
       /* fall through to /api/tts */
     }
     try {
-      const url = await fetchTts(t);
-      objectUrl = url;
-      const a = await playUrl(url);
+      let a = null;
+      const cached = cacheGet(t);
+      if (cached) {
+        try {
+          a = await playUrl(cached);
+        } catch (_cacheErr) {
+          cacheDelete(t);
+          a = null;
+        }
+      }
+      if (!a) {
+        const url = await fetchTts(t);
+        cachePut(t, url);
+        a = await playUrl(url);
+      }
       current = a;
+      emit("samvoice:start", { text: t, audio: a });
       await waitEnd(a);
       if (current === a) {
         current = null;

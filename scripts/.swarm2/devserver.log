@@ -1,0 +1,6 @@
+[dev] GITHUB_TOKEN not set — intake mocked to .local-intake/
+[dev] Sam local test → http://localhost:8793/receptionist.html
+[dev] chat model: qwen2.5:7b-instruct (Ollama 127.0.0.1:11434)
+Terminated                 PORT=8793 node scripts/dev-server.mjs
+
+[exited with code 143]
