@@ -3,7 +3,7 @@
  * Server-side NLP for Sam's message intake. Classifies the utterance and
  * extracts every slot in one shot so the front-end can skip questions the
  * caller already answered. Keys never leave the function; nothing here mints
- * or stores a key — Joshua sets them in Vercel env only.
+ * or stores a key — credentials stay in Vercel environment settings only.
  *
  * Provider order (same policy as /api/sam-chat):
  *   1. Ollama (LAN / vercel dev only — skipped on Vercel unless OLLAMA_HOST is remote)

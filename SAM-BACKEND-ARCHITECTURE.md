@@ -1,4 +1,4 @@
-# Sam Backend Architecture (Joshua's spec, 2026-08-27) — mapped to current stack
+# Sam Backend Architecture (company spec, 2026-08-27) — mapped to current stack
 
 Two layers, hard boundary between them:
 

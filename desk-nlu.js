@@ -361,10 +361,10 @@
     if (/\b(book|schedul|calendar|availab|slot|consult|discovery|appoint|set up a (call|time)|thirty minutes|30 minutes|free call)\b/.test(s)) {
       addScore(scores, "book", 6);
     }
-    if (/\b(email|phone|contact|reach you|write you|joshua@|hhinvestigations)\b/.test(s)) {
+    if (/\b(email|phone|contact|reach you|write you)\b/.test(s)) {
       addScore(scores, "contact", 5);
     }
-    if (/\b(talk to (a )?(person|human|joshua|someone)|real person|the owner)\b/.test(s)) {
+    if (/\b(talk to (a )?(person|human|someone)|real person|the owner)\b/.test(s)) {
       addScore(scores, "human", 6);
     }
     if (/\b(hvac|plumb|dispatch|voicemail|front desk|after[- ]hours|missed calls?|job notes|techs?|the shop)\b/.test(s) &&

@@ -88,7 +88,7 @@ function shimRes(res) {
 }
 
 // ---- dev-only local speech-to-text (faster-whisper via clip-factory venv) --
-const STT_PY = "/home/joshua/Projects/clip-factory/.venv/bin/python";
+const STT_PY = process.env.SAM_STT_PY || "";
 const STT_SCRIPT = `
 import sys
 from faster_whisper import WhisperModel

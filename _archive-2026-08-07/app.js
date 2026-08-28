@@ -106,9 +106,7 @@
         "What AI should take off our plate:",
         body,
       ].join("\n");
-      const subject = encodeURIComponent("Company AI Architect — Discovery Call");
-      const mailBody = encodeURIComponent(text);
-      window.location.href = `mailto:joshua@hhinvestigations.com?subject=${subject}&body=${mailBody}`;
+      window.location.href = "../";
     });
   }
 

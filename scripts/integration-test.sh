@@ -34,7 +34,7 @@ r=$(curl -s --max-time 120 -X POST $B/api/message-nlu -H "content-type: applicat
 echo "$r" | grep -q '"department":"billing"' && { pass=$((pass+1)); echo "PASS message-nlu routes billing"; } || { fail=$((fail+1)); echo "FAIL message-nlu: $(echo "$r" | head -c 200)"; }
 
 # notify skip logged (no RESEND key) — check server log
-grep -q "book_confirm_email" /tmp/claude-1000/-home-joshua/*/tasks/*.output 2>/dev/null && { pass=$((pass+1)); echo "PASS notify outcome logged"; } || { fail=$((fail+1)); echo "FAIL notify log line missing"; }
+grep -q "book_confirm_email" /tmp/sam-dev.log 2>/dev/null && { pass=$((pass+1)); echo "PASS notify outcome logged"; } || { fail=$((fail+1)); echo "FAIL notify log line missing"; }
 
 echo "== $pass passed, $fail failed"
 exit $fail

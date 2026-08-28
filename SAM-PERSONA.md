@@ -1,4 +1,4 @@
-# Sam — Persona, Examples, Avatar, Handoff (Joshua's spec, 2026-08-27)
+# Sam — Persona, Examples, Avatar, Handoff (company spec, 2026-08-27)
 
 Canonical persona source alongside `SAM.md` (locked facts/greeting) and
 `sam-system-prompt.txt` (runtime voice). Where this doc and `SAM.md` disagree,
@@ -119,7 +119,7 @@ Additional fields: `highlights` (conversation highlights, ≤600 chars) and
 Issue labels: `desk-booking` + `qualified-lead` + `fit:<level>` when present.
 The fit note is internal — never spoken to the visitor.
 
-## Non-negotiables (Joshua, 2026-08-27) — design decisions
+## Non-negotiables (company policy, 2026-08-27) — design decisions
 
 **Implemented in `/api/book` now:**
 - **Structured handoff** — the fields above are the source of truth; the main
@@ -157,13 +157,13 @@ The fit note is internal — never spoken to the visitor.
   never the full transcript.
 - **Permission boundaries** — the backend may create intake issues
   automatically. Sending email, touching CRM records, payments, or any
-  client data requires escalation to Joshua. Nothing on this public page
+  client data requires escalation to the owner. Nothing on this public page
   stores a customer database.
 - **Re-engagement** — returning visitors (recognized client-side, or by
   email match on an open issue) are greeted as returning, not as brand new;
   their open booking is acknowledged, not re-created. (Front-end slice.)
 
-## Conversation handling (Joshua, 2026-08-27)
+## Conversation handling (company policy, 2026-08-27)
 
 Core principle: *be so pleasant, clear, and helpful that the right people
 naturally want to go further — while never making anyone feel sold to.*
