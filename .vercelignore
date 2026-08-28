@@ -1,0 +1,14 @@
+# internal docs / tooling — never serve publicly
+scripts/
+.local-intake/
+_archive-2026-08-07/
+.claude/
+SAM.md
+SAM-PERSONA.md
+SAM-BACKEND-ARCHITECTURE.md
+SAM-RECEPTIONIST-SCRIPT.md
+SAM_SCRIPT.md
+sam-system-prompt.txt
+DEPLOY.md
+README.md
+.gitignore
