@@ -1,5 +1,8 @@
 {
   "cleanUrls": true,
+  "rewrites": [
+    { "source": "/availability.json", "destination": "/api/public-availability" }
+  ],
   "headers": [
     {
       "source": "/(.*)",

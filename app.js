@@ -42,13 +42,3 @@ document.querySelectorAll("a, button, input, textarea").forEach((el) => {
   el.addEventListener("mouseenter", () => { if (cursor) cursor.style.transform = "translate(-50%,-50%) scale(1.8)"; });
   el.addEventListener("mouseleave", () => { if (cursor) cursor.style.transform = "translate(-50%,-50%) scale(1)"; });
 });
-
-document.querySelector(".unlock-form")?.addEventListener("submit", (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const body = [...fd.entries()].map(([k, v]) => `${k}: ${v}`).join("\n");
-  const href = "mailto:joshua@hhinvestigations.com?subject=" +
-    encodeURIComponent("Company AI Architect Discovery") +
-    "&body=" + encodeURIComponent(body);
-  window.location.href = href;
-});
