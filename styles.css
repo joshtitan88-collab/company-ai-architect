@@ -431,6 +431,7 @@ footer .mark { margin: 0 0 .35rem; }
 @media (prefers-reduced-motion: reduce) {
   * { scroll-behavior: auto !important; transition: none !important; }
   .stage-img { transform: none !important; }
+  .desk-stage, .desk-veil { animation: none !important; }
 }
 
 
@@ -449,18 +450,29 @@ footer .mark { margin: 0 0 .35rem; }
   object-fit: cover;
   object-position: 50% 16%;
   opacity: 1;
-  transition: opacity .45s ease, transform .7s ease, filter .45s ease;
+  transition: opacity .26s ease, transform .7s ease, filter .45s ease;
 }
-.desk-still.speak, .desk-vid.talk { opacity: 0; }
+/* Stills: reduced-motion / no-video fallback, toggled by .talking */
+.desk-still.speak { opacity: 0; }
 .desk.talking .desk-still.idle { opacity: 0; }
 .desk.talking .desk-still.speak { opacity: 1; }
 .desk.has-vid .desk-still { opacity: 0; }
-.desk.has-vid .desk-vid.idle { opacity: 1; }
-.desk.has-vid.talking .desk-vid.idle { opacity: 0; }
-.desk.has-vid.talking .desk-vid.talk { opacity: 1; }
+/* Videos: hidden until JS marks the active layer with .on — crossfade, no jump cuts */
+.desk-vid { opacity: 0; }
+.desk-vid.on { opacity: 1; }
 .desk.listening .desk-vid, .desk.listening .desk-still {
   transform: scale(1.035);
   filter: brightness(1.08);
+}
+/* Human idle: barely-there 6s breathing on the whole stage */
+@keyframes desk-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.008); }
+}
+.desk:not(.talking):not(.listening):not(.processing) .desk-stage {
+  animation: desk-breathe 6s ease-in-out infinite;
+  transform-origin: 50% 30%;
+  will-change: transform;
 }
 .desk-veil {
   position: absolute; inset: 0;
@@ -468,6 +480,12 @@ footer .mark { margin: 0 0 .35rem; }
     linear-gradient(180deg, rgba(5,6,15,.28) 0%, rgba(5,6,15,.08) 38%, rgba(5,6,15,.9) 100%);
   pointer-events: none;
 }
+/* Thinking: gentle veil pulse while Sam works the network */
+@keyframes veil-think {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .78; }
+}
+.desk.processing .desk-veil { animation: veil-think 2.2s ease-in-out infinite; }
 .enter {
   position: absolute;
   inset: 0;
