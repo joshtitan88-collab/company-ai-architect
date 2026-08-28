@@ -23,6 +23,7 @@
   <main>
     <section class="desk" id="desk">
       <div class="desk-stage" aria-hidden="true">
+        <div id="liveAvatar" class="live-avatar"></div>
         <img class="desk-still idle" src="./assets/desk.jpg" alt="" />
         <video id="vidIdle" class="desk-vid idle" muted loop playsinline preload="auto" poster="./assets/desk.jpg">
           <source src="./assets/desk-idle.mp4" type="video/mp4" />
@@ -51,10 +52,20 @@
           <form id="bookForm">
             <label>Your name <input name="name" required /></label>
             <label>Work email <input name="email" type="email" required /></label>
+            <label>Phone <input name="phone" type="tel" autocomplete="tel" /></label>
             <label>Company <input name="company" required /></label>
             <label>What should she take off your plate?<textarea name="pain" rows="3" required></textarea></label>
             <button type="submit">Send the request</button>
           </form>
+        </div>
+        <div id="depositbox" class="depositbox hidden">
+          <h3>Your discovery is booked</h3>
+          <p class="fine">The call is free. If you're ready to reserve implementation capacity, you can make an optional deposit securely through Stripe.</p>
+          <div class="deposit-actions">
+            <button type="button" id="depositBtn">Pay optional deposit</button>
+            <a id="googleCal" href="#" target="_blank" rel="noopener">Add to Google Calendar</a>
+          </div>
+          <p id="depositStatus" class="fine" role="status"></p>
         </div>
       </div>
       <button type="button" id="enter" class="enter">
@@ -78,6 +89,7 @@
   <script src="./desk-qualify.js"></script>
   <script src="./sam-states.js"></script>
   <script src="./sam-stt.js"></script>
+  <script src="./sam-avatar.js"></script>
   <script src="./desk.js"></script>
 </body>
 </html>

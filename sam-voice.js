@@ -21,6 +21,8 @@
 
   let current = null;
   let objectUrl = null;
+  let requestController = null;
+  let playGeneration = 0;
 
   function slug(text) {
     return String(text || "")
@@ -35,7 +37,12 @@
     window.dispatchEvent(new CustomEvent(name, { detail: detail || {} }));
   }
 
-  function stop() {
+  function stop(reason) {
+    playGeneration += 1;
+    if (requestController) {
+      try { requestController.abort(); } catch (_e) {}
+      requestController = null;
+    }
     if (current) {
       try {
         current.pause();
@@ -50,14 +57,17 @@
       } catch (_e) {}
       objectUrl = null;
     }
+    emit("samvoice:cancel", { reason: reason || "stopped" });
   }
 
-  function playUrl(url) {
+  function playUrl(url, generation) {
     return new Promise(function (resolve, reject) {
       const a = new Audio(url);
+      current = a;
       a.preload = "auto";
       const ok = function () {
         a.removeEventListener("error", bad);
+        if (generation !== playGeneration) return reject(new Error("audio_cancelled"));
         resolve(a);
       };
       const bad = function () {
@@ -84,12 +94,17 @@
     });
   }
 
-  async function fetchTts(text) {
+  async function fetchTts(text, generation) {
+    const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    requestController = ctrl;
     const r = await fetch("/api/tts", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text: text, voice_id: "eve" }),
+      signal: ctrl ? ctrl.signal : undefined,
     });
+    if (generation !== playGeneration) throw new Error("tts_cancelled");
+    requestController = null;
     if (!r.ok) throw new Error("tts_" + r.status);
     const buf = await r.arrayBuffer();
     if (!buf || buf.byteLength < 64) throw new Error("tts_empty");
@@ -108,32 +123,33 @@
   async function play(text) {
     const t = String(text || "").trim();
     if (!t) return;
-    stop();
+    stop("superseded");
+    const generation = playGeneration;
     emit("samvoice:start", { text: t });
     const asset = cannedUrl(t);
     try {
-      const a = await playUrl(asset);
-      current = a;
+      const a = await playUrl(asset, generation);
       await waitEnd(a);
-      if (current === a) {
+      if (generation === playGeneration && current === a) {
         current = null;
         emit("samvoice:end", { text: t, source: "asset" });
       }
       return;
     } catch (_assetErr) {
+      if (generation !== playGeneration) return;
       /* fall through to /api/tts */
     }
     try {
-      const url = await fetchTts(t);
+      const url = await fetchTts(t, generation);
       objectUrl = url;
-      const a = await playUrl(url);
-      current = a;
+      const a = await playUrl(url, generation);
       await waitEnd(a);
-      if (current === a) {
+      if (generation === playGeneration && current === a) {
         current = null;
         emit("samvoice:end", { text: t, source: "tts" });
       }
     } catch (err) {
+      if (generation !== playGeneration) return;
       emit("samvoice:unavailable", { text: t, error: String(err && err.message ? err.message : err) });
       emit("samvoice:error", { text: t, error: String(err && err.message ? err.message : err) });
     }

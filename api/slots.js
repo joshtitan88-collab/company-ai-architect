@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { getGoogleBusy, googleCalendarConfigured } from "./google-calendar.js";
 
 function load() {
   return JSON.parse(readFileSync(join(process.cwd(), "availability.json"), "utf8"));
@@ -82,6 +83,16 @@ export default async function handler(req, res) {
   if (req.method !== "GET") return res.status(405).json({ error: "method" });
   try {
     const data = load();
+    if (googleCalendarConfigured()) {
+      try {
+        const timeMin = new Date().toISOString();
+        const timeMax = new Date(Date.now() + 21 * 86400000).toISOString();
+        const liveBusy = await getGoogleBusy(timeMin, timeMax);
+        data.busy = [...(data.busy || []), ...liveBusy];
+      } catch {
+        console.log(JSON.stringify({ evt: "slots_google_busy_failed" }));
+      }
+    }
     const taken = await bookedStarts();
     const slots = openSlots(data).filter((s) => !taken.has(s.start));
     res.status(200).json({ timezone: data.timezone, slotMinutes: data.slotMinutes, count: slots.length, slots });

@@ -13,6 +13,7 @@
  * - Observability: one structured log line per attempt and per outcome.
  */
 import { sendBookingConfirmation } from "./notify.js";
+import { createGoogleBooking } from "./google-calendar.js";
 
 const INTAKE_REPO = "joshtitan88-collab/company-ai-architect";
 
@@ -198,6 +199,17 @@ export default async function handler(req, res) {
   }
   console.log(JSON.stringify({ evt: "book_created", id: data.number, email, slotUtc, fit }));
 
+  // Calendar is a downstream convenience, not the booking source of truth.
+  // The GitHub intake above remains committed even if Google is unavailable.
+  let calendar = { ok: false, skipped: true };
+  try {
+    calendar = await createGoogleBooking({ name, email, company, pain, slotUtc, timezone });
+    console.log(JSON.stringify({ evt: "book_calendar", id: data.number, email, ok: calendar.ok, skipped: calendar.skipped || false }));
+  } catch (err) {
+    calendar = { ok: false, error: "calendar_failed" };
+    console.log(JSON.stringify({ evt: "book_calendar", id: data.number, email, ok: false, error: String(err && err.message || err) }));
+  }
+
   // Fire-and-forget confirmation email: the booking must never wait on, or
   // fail because of, the email path. sendBookingConfirmation never throws.
   sendBookingConfirmation({ name, email, company, slotUtc, timezone })
@@ -209,5 +221,9 @@ export default async function handler(req, res) {
       console.log(JSON.stringify({ evt: "book_confirm_email", id: data.number, email, ok: false, error: String(err && err.message || err) }));
     });
 
-  res.status(200).json({ ok: true, id: data.number });
+  res.status(200).json({
+    ok: true,
+    id: data.number,
+    calendar: calendar.ok ? { added: true, meetLink: calendar.meetLink || "" } : { added: false },
+  });
 }

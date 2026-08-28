@@ -61,7 +61,7 @@
     hours: "Discovery is weekdays, nine to five Eastern, thirty minutes, free. Openings only on the calendar — no names.",
     thanks: "You're welcome. Discovery is free if you want a slot.",
     bye: "Glad to help. I'm right here whenever you need us.",
-    none: "I can book a free discovery, quote the packages, or talk privacy. Thirty minutes. Free.",
+    none: "Tell me a little more about what you're trying to improve, and I'll help you think it through.",
     booked: "It's on the book. You'll get a confirmation. Nothing else is stored on this page.",
     book_fail: "I could not file that slot just now. Try again, or leave me a message and someone will follow up within a few hours.",
     need_name: "What's your name?",
@@ -539,17 +539,21 @@
   }
 
   function shouldCallLlm(guess, session, text) {
-    if (guess.intent === "unknown") return true;
-    if (guess.confidence < LOCAL_MIN) return true;
-    if (guess.close && guess.intent !== "book") return true;
-    const s = low(text);
-    if (s.split(/\s+/).length > 22 && guess.intent === "unknown") return true;
-    if (session.phase.indexOf("awaiting_") === 0 && guess.intent === "unknown") return true;
-    return false;
+    // The rules own transactional accuracy; the model owns normal dialogue.
+    // This keeps booking deterministic while letting even familiar questions
+    // sound contextual instead of replaying the same canned paragraph.
+    if (session.phase.indexOf("awaiting_") === 0 || session.phase === "confirming") return false;
+    if (["book", "slot_pick", "provide_contact", "confirm", "deny"].includes(guess.intent)) return false;
+    return true;
   }
 
-  async function askLlm(session, text, guess, slots) {
+  async function askLlm(session, text, guess, slots, externalSignal) {
     const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const abortFromOutside = function () { if (ctrl) ctrl.abort(); };
+    if (externalSignal) {
+      if (externalSignal.aborted) abortFromOutside();
+      else externalSignal.addEventListener("abort", abortFromOutside, { once: true });
+    }
     const timer = setTimeout(() => {
       if (ctrl) ctrl.abort();
     }, LLM_MS);
@@ -574,6 +578,7 @@
       return null;
     } finally {
       clearTimeout(timer);
+      if (externalSignal) externalSignal.removeEventListener("abort", abortFromOutside);
     }
   }
 
@@ -727,7 +732,7 @@
     }
 
     if (shouldCallLlm(guess, session, text) && !(opts && opts.offline)) {
-      llm = await askLlm(session, text, guess, slots);
+      llm = await askLlm(session, text, guess, slots, opts && opts.signal);
       if (llm && (llm.reply || llm.intent)) {
         source = llm.source || "llm";
         if (llm.intent && llm.intent !== "unknown") intent = llm.intent;
