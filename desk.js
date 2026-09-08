@@ -62,8 +62,7 @@ let mode = "idle";
 let processTimer = 0;
 let talkTimer = 0;
 
-// Processing stays visibly alive instead of exposing a paused processing frame.
-const VIDS = { idle: vidIdle, listen: vidListen, process: vidIdle, talk: vidTalk };
+const VIDS = { idle: vidIdle, listen: vidListen, process: vidProcess, talk: vidTalk };
 
 function playVid(el, unmuted) {
   if (!el || reduceMotion) return;
@@ -73,14 +72,23 @@ function playVid(el, unmuted) {
 }
 
 function armVideos() {
+  if (reduceMotion) return; // stills only — never swap the stage to video layers
   const ok = (el) => el && el.readyState >= 2 && el.videoWidth > 0;
   if (ok(vidIdle) || ok(vidTalk) || ok(vidListen) || ok(vidProcess)) desk.classList.add("has-vid");
-  if (!reduceMotion) playVid(vidIdle, false);
+  // Only nudge the idle layer; other modes own their own layer via setMode
+  // (never touch vidTalk here — sam-lipsync.js may be pausing it mid-talk).
+  if (mode === "idle" && vidIdle) {
+    vidIdle.classList.add("on");
+    playVid(vidIdle, false);
+  }
 }
 
 function setStatus(label) {
   if (stateEl) stateEl.textContent = label || "";
 }
+
+const FADE_MS = 300; // pause outgoing layers just after the 260ms CSS crossfade
+let fadeTimer = 0;
 
 function setMode(next) {
   mode = next;
@@ -91,11 +99,28 @@ function setMode(next) {
   setStatus(next === "listen" ? "Listening" : next === "process" ? "Working" : "");
   if (reduceMotion) return;
   const active = VIDS[next] || vidIdle;
-  playVid(active, next === "talk" && active === vidTalk && vidTalk.dataset.ownAudio === "1");
   Object.entries(VIDS).forEach(([k, el]) => {
     if (!el) return;
-    if (el !== active) setTimeout(() => { if (VIDS[mode] !== el) el.pause(); }, 500);
+    if (el === active) {
+      // Fade the incoming layer in while it plays — no hard cut.
+      el.classList.add("on");
+      playVid(el, k === "talk" && el === vidTalk && vidTalk.dataset.ownAudio === "1");
+    } else {
+      // Fade out now; keep it playing until the fade ends so the outgoing
+      // frame doesn't freeze mid-blend. Actual pause happens in fadeTimer.
+      el.classList.remove("on");
+    }
   });
+  clearTimeout(fadeTimer);
+  fadeTimer = setTimeout(() => {
+    const current = VIDS[mode] || vidIdle;
+    Object.values(VIDS).forEach((el) => {
+      // Never pause the active layer (sam-lipsync.js may itself pause/play
+      // vidTalk during talk — we leave the visible layer alone), and skip
+      // any layer that became active again mid-fade.
+      if (el && el !== current && !el.classList.contains("on")) el.pause();
+    });
+  }, FADE_MS);
 }
 
 // SamVoice drives the talk state; greeting plays its own lip-synced clip.
@@ -275,7 +300,7 @@ async function postBook(payload) {
     selected = null;
     return true;
   } catch {
-    speak("I could not file that slot just now. Try again, or leave me a message and someone will follow up.");
+    speak("I could not file that slot just now. Try again, or leave me a message and someone will follow up within a few hours.");
     return false;
   }
 }
@@ -432,5 +457,7 @@ fetch("/api/slots")
   .catch(() => { remoteSlots = []; });
 
 if (!reduceMotion) {
-  vidIdle.addEventListener("canplay", () => playVid(vidIdle), { once: true });
+  vidIdle.addEventListener("canplay", () => {
+    if (mode === "idle") { vidIdle.classList.add("on"); playVid(vidIdle); }
+  }, { once: true });
 }

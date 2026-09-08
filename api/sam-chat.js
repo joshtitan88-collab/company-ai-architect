@@ -9,7 +9,7 @@
  * client keeps the local intent matcher.
  */
 const SYSTEM = `You are Sam, the AI front desk employee and concierge for Company AI Architect (companyaiarchitect.com).
-You are exceptionally pleasant, warm, knowledgeable, and professional. You treat every visitor as a potential client. You are attentive and enjoyable. You are never pushy or salesy — care is how interest turns into a next step.
+You are exceptionally pleasant, warm, knowledgeable, and professional. You treat every visitor as a potential client. You are never pushy or salesy — care is how interest turns into a next step.
 
 Never any other name. You are not "the desk". You are not an operator. You never say "the install" as a name. You never say "this conversation is the product". You never leak hours in a greeting. You never name a person or a personal mailbox. You never say you will pass this to a human.
 
@@ -23,9 +23,11 @@ Prices only if asked — quote these, do not invent a range:
 - Architect + 14-day package: from $4,500
 Timezone: America/New_York. Discovery weekdays 9–5 Eastern. Openings only — never names of who is booked.
 
-You book a free 30-minute discovery. Collect name, work email, shop/company, optional pain, and a slot. Do not ask for customer files, medical, legal, or payment data. If you don't know something, say so kindly and offer a next step (calendar, packages, or a note on the board).
+You book a free 30-minute discovery. Collect name, work email, shop/company, optional pain, and a slot. Do not ask for customer files, medical, legal, or payment data. If you don't know something, say so kindly and offer a next step (calendar, packages, or a note on the board). If a visitor wants to leave a message or note for the team, use intent contact: confirm you have taken the note, collect their name and email if missing, and never promise a named person will call.
 
-Reply in 1–3 short spoken sentences. Warm, natural, no markdown, no lists, no emojis.
+Privacy if asked: what they share here stays on the company's own hardware, is used only to help them, and is never sold. Off-topic questions (weather, news, etc.): one friendly sentence declining, then steer back to how the company can help.
+
+Reply in 1–3 short spoken sentences, under 40 words total. Warm, natural, no markdown, no lists, no emojis. Answer only what was asked — do not volunteer prices or pitches unprompted. Decide quickly; do not deliberate.
 
 intent must be exactly one of: greet, who, product, price, privacy, book, contact, human, hours, shop_leak, thanks, bye, confirm, deny, unknown
 action must be exactly one of: none, show_calendar, show_packages, show_stages, open_book, need_fields
@@ -204,7 +206,7 @@ async function chatOllama(prompt) {
         model,
         stream: false,
         format: "json",
-        options: { temperature: 0.2, num_predict: 280 },
+        options: { temperature: 0.2, num_predict: 180 },
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: prompt },
@@ -224,7 +226,7 @@ async function chatOllama(prompt) {
   return normalizeOut(parsed, "ollama:" + model);
 }
 
-async function chatOpenAiCompat(base, key, model, prompt, label) {
+async function chatOpenAiCompat(base, key, model, prompt, label, extra) {
   const r = await timedFetch(
     base.replace(/\/$/, "") + "/chat/completions",
     {
@@ -236,15 +238,18 @@ async function chatOpenAiCompat(base, key, model, prompt, label) {
       body: JSON.stringify({
         model,
         temperature: 0.2,
-        max_tokens: 280,
+        max_tokens: 180,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: prompt },
         ],
+        ...(extra || {}),
       }),
     },
-    8000
+    // Prod has only xAI configured — give the sole provider a little more
+    // headroom than 8s so a slow turn degrades to "slow" instead of llm_failed.
+    Number(process.env.SAM_LLM_TIMEOUT_MS || 9000)
   );
   if (!r.ok) throw new Error(label + "_" + r.status);
   const data = await r.json();
@@ -267,7 +272,7 @@ async function chatAnthropic(prompt) {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 280,
+        max_tokens: 180,
         temperature: 0.2,
         system: SYSTEM,
         messages: [{ role: "user", content: prompt + "\n\nJSON only." }],
@@ -303,12 +308,17 @@ async function runChat(prompt) {
   }
   if (process.env.XAI_API_KEY) {
     try {
+      const xaiModel = process.env.SAM_CHAT_MODEL || process.env.XAI_MODEL || "grok-3-mini";
+      // grok-3-mini is a reasoning model; low effort cuts multi-second thinking
+      // time for a receptionist-sized reply without touching the persona.
+      const xaiExtra = /grok-3-mini/.test(xaiModel) ? { reasoning_effort: "low" } : undefined;
       return await chatOpenAiCompat(
         "https://api.x.ai/v1",
         process.env.XAI_API_KEY,
-        process.env.SAM_CHAT_MODEL || process.env.XAI_MODEL || "grok-3-mini",
+        xaiModel,
         prompt,
-        "xai"
+        "xai",
+        xaiExtra
       );
     } catch (e) {
       errors.push(String(e.message || e));
