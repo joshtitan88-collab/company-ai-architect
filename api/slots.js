@@ -73,7 +73,7 @@ export default async function handler(req, res) {
     }
     stage = "generate_slots";
     const slots = openSlots(data).filter((s) => !reserved.some((r) => overlaps(s.start, s.start + data.slotMinutes * 60000, r.start, r.end)));
-    return res.status(200).json({ timezone: data.timezone, slotMinutes: data.slotMinutes, count: slots.length, slots });
+    return res.status(200).json({ timezone: data.timezone, slotMinutes: data.slotMinutes, bookingMode: googleCalendarConfigured() ? "calendar" : "request", count: slots.length, slots });
   } catch (error) {
     // Log only bounded diagnostic codes. Provider messages, paths, credentials and
     // customer data must never reach either runtime logs or the public response.

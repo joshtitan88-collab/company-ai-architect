@@ -27,6 +27,8 @@ const stateEl = document.getElementById("state");
 
 let remoteSlots = [];
 let slotsStatus = "loading";
+let slotsLoadPromise = null;
+let bookingMode = "request";
 let bookingBusy = false;
 let messageBusy = false;
 let selected = null;
@@ -249,7 +251,7 @@ function renderCal(focusDay) {
   hidePanels();
   if (!days.length) {
     calEl.innerHTML = `<h3>Discovery availability</h3><p class="fine">${slotsStatus === "error" ? "I can’t check availability right now. Please retry, or leave a message with your preferred time." : slotsStatus === "loading" ? "Checking the latest openings…" : "No openings in this window. You can leave a message with your preferred time."}</p><button type="button" id="retrySlots">Check again</button>`;
-    calEl.querySelector("#retrySlots").addEventListener("click", async () => { await loadSlots(); renderCal(); });
+    calEl.querySelector("#retrySlots").addEventListener("click", () => { loadSlots(); });
     calEl.classList.remove("hidden");
     return;
   }
@@ -264,7 +266,7 @@ function renderCal(focusDay) {
   calEl.innerHTML = `<h3>Open discovery times · Eastern</h3>
     <div class="cal-days">${dayBtns}</div>
     <div class="slots">${chips}</div>
-    <p class="fine">Openings only. No names. Thirty minutes.</p>`;
+    <p class="fine">${bookingMode === "request" ? "Choose a preferred time for your free, thirty-minute discovery. The team will confirm your appointment." : "Free, thirty-minute discovery. Final availability is checked when you submit."}</p>`;
   calEl.classList.remove("hidden");
   calEl.querySelectorAll(".cal-day").forEach((b) => b.addEventListener("click", () => renderCal(b.dataset.day)));
   calEl.querySelectorAll(".slot").forEach((b) => b.addEventListener("click", () => {
@@ -405,7 +407,7 @@ async function handle(text, myTurn, signal) {
   }
 
   const nextSession = cloneState(session);
-  const turn = await SamNLU.turn(nextSession, text, { slots: remoteSlots, signal });
+  const turn = await SamNLU.turn(nextSession, text, { slots: remoteSlots, slotsStatus, signal });
   if (myTurn !== turnNumber || (signal && signal.aborted)) return;
   session = nextSession;
   turnController = null;
@@ -560,14 +562,26 @@ window.addEventListener("pagehide", () => { stopEverything("pagehide"); turnNumb
   el.addEventListener("error", () => {});
 });
 
-async function loadSlots() {
+function loadSlots() {
+  if (slotsLoadPromise) return slotsLoadPromise;
   slotsStatus = "loading";
-  try {
-    const r = await fetch("/api/slots", { signal: AbortSignal.timeout(20000) });
-    const data = await r.json();
-    if (!r.ok || !Array.isArray(data.slots)) throw new Error("slots_failed");
-    remoteSlots = data.slots; slotsStatus = "ready";
-  } catch { remoteSlots = []; slotsStatus = "error"; }
+  slotsLoadPromise = Promise.resolve().then(async () => {
+    try {
+      const r = await fetch("/api/slots", { signal: AbortSignal.timeout(20000) });
+      const data = await r.json();
+      if (!r.ok || !Array.isArray(data.slots)) throw new Error("slots_failed");
+      remoteSlots = data.slots;
+      bookingMode = data.bookingMode === "calendar" ? "calendar" : "request";
+      slotsStatus = "ready";
+    } catch { remoteSlots = []; slotsStatus = "error"; }
+    finally {
+      slotsLoadPromise = null;
+      // A visitor may open the panel before the initial request finishes.
+      // Refresh only a visible calendar so late results cannot reopen a panel.
+      if (!calEl.classList.contains("hidden")) renderCal();
+    }
+  });
+  return slotsLoadPromise;
 }
 loadSlots();
 
