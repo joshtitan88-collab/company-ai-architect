@@ -540,7 +540,7 @@
       case "book":
         return {
           reply: (slots && slots.length ? LINES.schedule : LINES.schedule_none) + openingsLine(slots),
-          action: slots && slots.length ? "show_calendar" : "none",
+          action: "show_calendar",
         };
       default:
         return { reply: LINES.none, action: "none" };
