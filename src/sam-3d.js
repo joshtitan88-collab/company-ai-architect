@@ -14,6 +14,7 @@ function clearSpeech() {
   audio = null;
   timeline = null;
   level = 0;
+  smoothed = 0;
   if (head) {
     head.isSpeaking = false;
     if (lastViseme) head.setValue('viseme_' + lastViseme, 0, 70);
@@ -36,7 +37,10 @@ function animate(dt) {
     if (i >= 0) viseme = timeline.visemes[i];
   }
   if (lastViseme && lastViseme !== viseme) head.setValue('viseme_' + lastViseme, 0, 65);
-  if (viseme) head.setValue('viseme_' + viseme, smoothed * .85, 50);
+  if (viseme) {
+    head.setValue('jawOpen', 0, 50);
+    head.setValue('viseme_' + viseme, smoothed * .85, 50);
+  }
   else head.setValue('jawOpen', smoothed * .42, 50);
   lastViseme = viseme;
 }
@@ -50,7 +54,7 @@ async function start() {
         lipsyncModules: [], ttsEndpoint: null,
         cameraView: 'upper', cameraDistance: .12,
         cameraRotateEnable: false, cameraPanEnable: false, cameraZoomEnable: false,
-        modelFPS: 30, modelPixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
+        modelFPS: 30, modelPixelRatio: Math.min(1, 1.5 / (window.devicePixelRatio || 1)),
         modelMovementFactor: reduced ? 0 : .3,
         avatarIdleEyeContact: .85, avatarIdleHeadMove: reduced ? 0 : .15,
         avatarSpeakingEyeContact: .95, avatarSpeakingHeadMove: reduced ? 0 : .2,
@@ -88,7 +92,7 @@ window.addEventListener('samvoice:start', event => {
   if (head && ready) { head.isSpeaking = true; head.lookAtCamera(5000); }
 });
 window.addEventListener('samvoice:level', event => { level = Number(event.detail?.level) || 0; });
-['samvoice:end', 'samvoice:cancel', 'samvoice:unavailable'].forEach(name => window.addEventListener(name, clearSpeech));
+['samvoice:end', 'samvoice:cancel', 'samvoice:error', 'samvoice:unavailable'].forEach(name => window.addEventListener(name, clearSpeech));
 window.addEventListener('sam:mode', event => {
   if (!head || !ready) return;
   if (event.detail.mode === 'listen') head.lookAtCamera(10000);

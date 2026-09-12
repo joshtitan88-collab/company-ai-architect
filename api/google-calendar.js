@@ -84,4 +84,3 @@ export async function createGoogleBooking({ name, email, company, pain, slotUtc,
   if (!r.ok || !data.id) throw new Error("google_event_failed");
   return { ok: true, id: data.id, htmlLink: data.htmlLink || "", meetLink: data.hangoutLink || "" };
 }
-

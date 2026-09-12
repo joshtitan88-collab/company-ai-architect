@@ -142,4 +142,3 @@ export default async function handler(req, res) {
   if (!r.ok || !data.number) return res.status(502).json({ error: "intake_failed", status: r.status });
   res.status(200).json({ ok: true, id: data.number, team });
 }
-

@@ -422,4 +422,3 @@
     TEAMS,
   };
 })(typeof window !== "undefined" ? window : globalThis);
-
