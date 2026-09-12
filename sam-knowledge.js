@@ -44,8 +44,9 @@
     if (/\b(stop|end|exit|finish) (?:the )?demo\b|\bback to (?:normal|business)\b/i.test(s)) {
       return reply("product", "Of course. We're back at Company AI Architect. What would you like to explore about a setup for your business?", "none", { demo: null });
     }
+    if (wantsBooking(s)) return reply("book", "Choose a time from the live openings below for a free thirty-minute discovery call.", "show_calendar", { demo: null });
     // The roleplay is intentionally local and read-only; it cannot file intake.
-    if (wantsDemo(s)) {
+    if (wantsDemo(s) && (!ctx.demo || /\b(?:restart|another|new|different|start over)\b/i.test(s))) {
       const opening = kind === "plumbing" ? "Thanks for calling your plumbing team, this is Sam. Is this a repair request or a new installation?"
         : kind === "HVAC" ? "Thanks for calling your heating and cooling team, this is Sam. Are you calling about heating, cooling, or routine maintenance?"
         : kind === "electrical" ? "Thanks for calling your electrical team, this is Sam. Is this a repair request or a new project?"

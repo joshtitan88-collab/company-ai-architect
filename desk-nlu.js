@@ -638,8 +638,10 @@
 
     if (/\b(?:i|we) (?:own|run|operate|manage|work|have)|my (?:business|company|office|practice)|(?:our|my) (?:crm|software|team)/i.test(text)) session.businessContext = (session.businessContext + " " + text).trim().slice(-800);
     const guess = classify(text, session);
+    const explicitBooking = !!(KNOWLEDGE && KNOWLEDGE.wantsBooking(text));
+    if (explicitBooking) { guess.intent = "book"; session.demo = null; }
     const grounded = KNOWLEDGE ? KNOWLEDGE.answer(text, session) : null;
-    if (grounded && (["demo", "price", "privacy"].includes(grounded.intent) || Object.prototype.hasOwnProperty.call(grounded, "demo"))) {
+    if (grounded && grounded.intent !== "book" && (["demo", "price", "privacy"].includes(grounded.intent) || Object.prototype.hasOwnProperty.call(grounded, "demo"))) {
       if (Object.prototype.hasOwnProperty.call(grounded, "demo")) session.demo = grounded.demo;
       ingest(session, text, {});
       remember(session, grounded.reply);
@@ -755,6 +757,13 @@
       session.phase = "idle";
       remember(session, "Of course. We can leave that for now. What else would you like to explore?");
       return result(session, "deny", "Of course. We can leave that for now. What else would you like to explore?", "none");
+    }
+
+    if (explicitBooking) {
+      const next = session.booking.slotIso ? askNext(session) : localReply(session, "book", slots);
+      if (!session.booking.slotIso) session.phase = "awaiting_slot";
+      remember(session, next.reply);
+      return result(session, "book", next.reply, next.action, { source: "rules" });
     }
 
     if (shouldCallLlm(guess, session, text) && !(opts && opts.offline)) {
