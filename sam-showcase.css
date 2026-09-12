@@ -70,3 +70,22 @@
   .conversation-footer { font-size: 11px; }
 }
 @media (prefers-reduced-motion: reduce) { .sam-showcase * { animation: none !important; transition: none !important; } }
+
+/* Keep touch controls readable and put the conversation in reach on a phone. */
+.sam-showcase button { touch-action: manipulation; }
+.sam-showcase .row button, .conversation-footer button { min-height: 44px; }
+.sam-showcase #mic.live { background: #a8dcdf; color: #101723; border-color: #a8dcdf; }
+.sam-showcase input, .sam-showcase textarea { font-size: 16px; }
+@media (max-width: 800px) {
+  .sam-showcase .desk-stage { height: 310px; }
+  .avatar-caption { padding: 170px 22px 22px; min-height: 310px; }
+  .avatar-caption h1 { font-size: 34px; }
+  .conversation-footer, .conversation-footer button { font-size: 12px; }
+  .sam-showcase .dock { padding-bottom: env(safe-area-inset-bottom); }
+  .sam-showcase .cal, .sam-showcase .bookbox { max-height: none; }
+}
+@media (max-width: 360px) {
+  .sam-showcase .nav { padding: 12px; }
+  .conversation-panel { padding: 24px 14px; }
+  .nav-actions button { max-width: 120px; }
+}
