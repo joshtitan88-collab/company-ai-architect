@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 /** Google Calendar OAuth helper. All credentials remain server-side. */
 let cached = { token: "", expiresAt: 0 };
 
@@ -20,6 +22,7 @@ async function accessToken() {
   });
   const r = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
+    signal: AbortSignal.timeout(8000),
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: form.toString(),
   });
@@ -41,22 +44,26 @@ export async function getGoogleBusy(timeMin, timeMax) {
   const token = await accessToken();
   const r = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
     method: "POST",
+    signal: AbortSignal.timeout(8000),
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify({ timeMin, timeMax, items: [{ id: calendarId() }] }),
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error("google_freebusy_failed");
   const cal = data.calendars && data.calendars[calendarId()];
-  return Array.isArray(cal && cal.busy) ? cal.busy : [];
+  if (!cal || cal.errors?.length || !Array.isArray(cal.busy)) throw new Error("google_freebusy_failed");
+  return cal.busy;
 }
 
-export async function createGoogleBooking({ name, email, company, pain, slotUtc, timezone }) {
+export async function createGoogleBooking({ name, email, company, pain, slotUtc, timezone, durationMinutes = 30 }) {
   if (!googleCalendarConfigured()) return { ok: false, skipped: true };
   const token = await accessToken();
   const start = new Date(slotUtc);
-  const end = new Date(start.getTime() + 30 * 60_000);
+  const end = new Date(start.getTime() + durationMinutes * 60_000);
   const requestId = `sam-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   const event = {
+    // Stable ID makes concurrent requests for the same slot an atomic insert.
+    id: createHash("sha256").update(`${calendarId()}:${start.toISOString()}`).digest("hex"),
     summary: `Discovery — ${company}`,
     description: [`Booked by Sam`, `Visitor: ${name}`, pain ? `Need: ${pain}` : ""].filter(Boolean).join("\n"),
     start: { dateTime: start.toISOString(), timeZone: timezone || "America/New_York" },
@@ -68,10 +75,12 @@ export async function createGoogleBooking({ name, email, company, pain, slotUtc,
   const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId())}/events?${qs}`;
   const r = await fetch(url, {
     method: "POST",
+    signal: AbortSignal.timeout(8000),
     headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
     body: JSON.stringify(event),
   });
   const data = await r.json().catch(() => ({}));
+  if (r.status === 409) throw new Error("slot_taken");
   if (!r.ok || !data.id) throw new Error("google_event_failed");
   return { ok: true, id: data.id, htmlLink: data.htmlLink || "", meetLink: data.hangoutLink || "" };
 }

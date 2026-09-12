@@ -13,7 +13,20 @@
  *                    Values land in the issue body as "owner:" so the intake
  *                    workflow (or a human) knows who the message is for.
  */
-import { verifyPrivateIntake } from "./private-intake.js";
+import { verifyPrivateIntake } from "./_private-intake.js";
+
+const rateBuckets = new Map();
+function rateLimited(req) {
+  const now = Date.now();
+  for (const [key, times] of rateBuckets) {
+    const recent = times.filter((time) => now - time < 60000);
+    if (recent.length) rateBuckets.set(key, recent); else rateBuckets.delete(key);
+  }
+  const ip = String(req.headers?.["x-forwarded-for"] || "local").split(",")[0].trim();
+  const times = rateBuckets.get(ip) || [];
+  if (times.length >= 8) return true;
+  times.push(now); rateBuckets.set(ip, times); return false;
+}
 
 const DEFAULT_ROUTES = {
   sales: "owner",
@@ -53,13 +66,18 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "method" });
 
-  const body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {});
-  const name = String(body.name || "").trim().slice(0, 120);
-  const company = String(body.company || "").trim().slice(0, 120);
-  const contact = String(body.contact || "").trim().slice(0, 160);
+  if (rateLimited(req)) return res.status(429).json({ error: "rate_limited" });
+  let body;
+  try { body = typeof req.body === "string" ? JSON.parse(req.body || "{}") : (req.body || {}); }
+  catch { return res.status(400).json({ error: "invalid_json" }); }
+  if (!body || typeof body !== "object" || Array.isArray(body)) return res.status(400).json({ error: "invalid_json" });
+  const line = (value, max) => String(value || "").replace(/[\r\n]/g, " ").trim().slice(0, max);
+  const name = line(body.name, 120);
+  const company = line(body.company, 120);
+  const contact = line(body.contact, 160);
   const contactKind = body.contactKind === "phone" ? "phone" : "email";
   const message = String(body.message || "").trim().slice(0, 2000);
-  const urgent = Boolean(body.urgent);
+  const urgent = body.urgent === true;
 
   const contactOk =
     contactKind === "email"
@@ -96,7 +114,7 @@ export default async function handler(req, res) {
     `- team: ${team}`,
     `- owner: ${routes[team] || routes.general}`,
     `- urgent: ${urgent ? "yes" : "no"}`,
-    `- page: ${String(body.page || "").slice(0, 200)}`,
+    `- page: ${line(body.page, 200)}`,
     "",
     "## Message",
     "",
@@ -106,16 +124,21 @@ export default async function handler(req, res) {
   const labels = ["desk-message", `route:${team}`];
   if (urgent) labels.push("priority-high");
 
-  const r = await fetch(`https://api.github.com/repos/${intake.repo}/issues`, {
+  let r, data;
+  try {
+  r = await fetch(`https://api.github.com/repos/${intake.repo}/issues`, {
     method: "POST",
+    signal: AbortSignal.timeout(8000),
     headers: {
+      "content-type": "application/json",
       Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
     },
     body: JSON.stringify({ title, body: md, labels }),
   });
-  const data = await r.json();
-  if (!r.ok) return res.status(502).json({ error: "intake_failed", status: r.status });
+  data = await r.json();
+  } catch { return res.status(502).json({ error: "intake_failed" }); }
+  if (!r.ok || !data.number) return res.status(502).json({ error: "intake_failed", status: r.status });
   res.status(200).json({ ok: true, id: data.number, team });
 }

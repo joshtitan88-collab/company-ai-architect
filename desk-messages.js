@@ -107,7 +107,7 @@
     /\b(book|schedule|set up|grab)\b.{0,24}\b(call|meeting|slot|time|appointment|discovery)\b|\bappointment\b|\bsee the calendar\b/i;
 
   const YES_RE =
-    /^\s*(y|yes|yeah|yep|sure|correct|right|that's right|send it|go ahead|please do|ok(ay)?)\b/i;
+    /^\s*(y|yes|yeah|yep|sure|correct|right|that's right|send it|go ahead|please do|try again|retry|resend|ok(ay)?)\b/i;
   const NO_RE = /^\s*(n|no|nope|nah|cancel|never ?mind|forget it|don't|stop)\b/i;
 
   const LINES = {
@@ -120,10 +120,10 @@
       "I did not quite catch a working email or phone number there — could you give me one of those?",
     confirm_prefix: "Let me read that back. ",
     confirm_suffix: " Shall I send it?",
-    sent: "All set — your message is with {team}, and they will follow up at the contact you gave me.",
-    sent_short: "All set — it is with the right person now.",
+    sent: "Your message is saved for {team}, with your contact details for follow-up.",
+    sent_short: "Your message is saved for the team, along with your contact details.",
     send_failed:
-      "I am sorry — I could not file that just now. If you email us directly it will reach the same people.",
+      "I could not save that just now. I still have your message here — say try again and I will resend it.",
     cancelled:
       "Of course, consider it dropped. Is there anything else I can help with — our packages, privacy, or a free thirty-minute discovery call?",
     already_sent: "That message is already on its way. Is there anything else I can help with?",
@@ -291,6 +291,8 @@
     const text = String(userText || "").trim();
     const s = session;
 
+    if (s.state === "sending") return { reply: "I am still saving your message. One moment.", action: "none" };
+
     if (s.state === "done") {
       s.state = "idle";
       return { reply: LINES.already_sent, action: "none" };
@@ -309,8 +311,8 @@
 
     if (s.state === "confirm") {
       if (YES_RE.test(text)) {
-        const done = { reply: LINES.sent.replace("{team}", teamLabel(s.team)), action: "submit_message", payload: payloadOf(s) };
-        s.state = "done";
+        const done = { reply: "I am sending your message now.", action: "submit_message", payload: payloadOf(s) };
+        s.state = "sending";
         return done;
       }
       // Anything that isn't yes/no is a correction to the message.
@@ -355,7 +357,7 @@
     const text = String(userText || "").trim();
 
     // Deterministic guards stay local — never spend an LLM call on "yes".
-    if (s.state === "done" || (active(s) && (NO_RE.test(text) || YES_RE.test(text))) || typeof fetch !== "function") {
+    if (s.state === "sending" || s.state === "done" || (active(s) && (NO_RE.test(text) || YES_RE.test(text))) || typeof fetch !== "function") {
       return turn(s, text);
     }
 
@@ -406,6 +408,9 @@
 
   root.SamMessages = {
     createSession,
+    markSubmitted(session, success) {
+      if (session && session.state === "sending") session.state = success ? "done" : "confirm";
+    },
     turn,
     turnSmart,
     wants,

@@ -5,35 +5,11 @@
  * Provider order:
  *   1. Ollama (LAN / vercel dev only — skipped on Vercel unless OLLAMA_HOST is remote)
  *   2. xAI (XAI_API_KEY)  3. OpenAI  4. Anthropic
- * If none are configured, returns { ok:false, error:"llm_not_configured" } so the
- * client keeps the local intent matcher.
+ * If providers are unavailable, shared company knowledge keeps conversation useful.
  */
-const SYSTEM = `You are Sam, the AI front desk employee and concierge for Company AI Architect (companyaiarchitect.com).
-You are exceptionally pleasant, warm, knowledgeable, and professional. You treat every visitor as a potential client. You are never pushy or salesy — care is how interest turns into a next step.
-
-Never any other name. You are not "the desk". You are not an operator. You never say "the install" as a name. You never say "this conversation is the product". You never leak hours in a greeting. You never name a person or a personal mailbox. You never say you will pass this to a human.
-
-Locked first greeting (use only if they just said hello and you have not greeted): "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?"
-
-Product: local AI on hardware they own (tower or mini at their shop). Calls, jobs, notes stay there. Not a ChatGPT login. That is how they get more capability while saving time and money.
-
-Prices only if asked — quote these, do not invent a range:
-- Discovery: free, 30 minutes
-- AI Opportunity Audit: $1,500
-- Architect + 14-day package: from $4,500
-Timezone: America/New_York. Discovery weekdays 9–5 Eastern. Openings only — never names of who is booked.
-
-You book a free 30-minute discovery. Collect name, work email, shop/company, optional pain, and a slot. Do not ask for customer files, medical, legal, or payment data. If you don't know something, say so kindly and offer a next step (calendar, packages, or a note on the board). If a visitor wants to leave a message or note for the team, use intent contact: confirm you have taken the note, collect their name and email if missing, and never promise a named person will call.
-
-Privacy if asked: what they share here stays on the company's own hardware, is used only to help them, and is never sold. Off-topic questions (weather, news, etc.): one friendly sentence declining, then steer back to how the company can help.
-
-Reply in 1–3 short spoken sentences, under 40 words total. Respond to the visitor's actual wording, vary your phrasing across turns, and ask at most one natural follow-up question. Use contractions when they fit. Never repeat a pitch they have already heard. Warm, natural, no markdown, no lists, no emojis. Answer only what was asked — do not volunteer prices or pitches unprompted. Decide quickly; do not deliberate.
-
-intent must be exactly one of: greet, who, product, price, privacy, book, contact, human, hours, shop_leak, thanks, bye, confirm, deny, unknown
-action must be exactly one of: none, show_calendar, show_packages, show_stages, open_book, need_fields
-
-Return ONLY JSON, for example:
-{"intent":"price","reply":"Discovery is free. The written audit is one thousand five hundred. Architect plus a fourteen-day package starts at four thousand five hundred. You keep the map even if you stop after the audit.","action":"show_packages","extract":{"name":"","email":"","company":"","pain":"","slotIso":"","slotHint":""}}`;
+import "../sam-knowledge.js";
+const KNOWLEDGE = globalThis.SamKnowledge;
+import { SYSTEM } from "./_company-system.js";
 
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -79,7 +55,7 @@ function sanitizeReply(text) {
   t = t.replace(/this conversation is the product\.?/gi, "");
   t = t.replace(/\bI(?:['’]m| am) the (?:desk|install)\b/gi, "I am Sam, the receptionist");
   t = t.replace(/\bthe install\b/gi, "the fourteen-day package");
-  if (t.length > 420) t = t.slice(0, 417) + "…";
+  if (t.length > 650) t = t.slice(0, 647) + "…";
   return t;
 }
 
@@ -114,6 +90,7 @@ const INTENTS = new Set([
   "greet",
   "who",
   "product",
+  "demo",
   "price",
   "privacy",
   "book",
@@ -176,6 +153,8 @@ function userPayload(body) {
   return [
     hist ? "Recent turns:\n" + hist : "",
     "Phase: " + (body.phase || "idle"),
+    "Visitor business context: " + String(body.businessContext || "").slice(0,800),
+    "Demonstration state (read-only roleplay): " + JSON.stringify(body.demo || null),
     "Booking so far: " + JSON.stringify(body.booking || {}),
     body.guess ? "Local matcher guess: " + JSON.stringify(body.guess) : "",
     slots ? "Open slots (Eastern): " + slots : "Open slots: (none passed)",
@@ -206,7 +185,7 @@ async function chatOllama(prompt) {
         model,
         stream: false,
         format: "json",
-        options: { temperature: 0.2, num_predict: 180 },
+        options: { temperature: 0.2, num_predict: 280 },
         messages: [
           { role: "system", content: SYSTEM },
           { role: "user", content: prompt },
@@ -238,7 +217,7 @@ async function chatOpenAiCompat(base, key, model, prompt, label, extra) {
       body: JSON.stringify({
         model,
         temperature: 0.2,
-        max_tokens: 180,
+        max_tokens: 280,
         response_format: { type: "json_object" },
         messages: [
           { role: "system", content: SYSTEM },
@@ -249,7 +228,7 @@ async function chatOpenAiCompat(base, key, model, prompt, label, extra) {
     },
     // Prod has only xAI configured — give the sole provider a little more
     // headroom than 8s so a slow turn degrades to "slow" instead of llm_failed.
-    Number(process.env.SAM_LLM_TIMEOUT_MS || 9000)
+    Number(process.env.SAM_LLM_TIMEOUT_MS || 6000)
   );
   if (!r.ok) throw new Error(label + "_" + r.status);
   const data = await r.json();
@@ -272,7 +251,7 @@ async function chatAnthropic(prompt) {
       },
       body: JSON.stringify({
         model,
-        max_tokens: 180,
+        max_tokens: 280,
         temperature: 0.2,
         system: SYSTEM,
         messages: [{ role: "user", content: prompt + "\n\nJSON only." }],
@@ -362,14 +341,36 @@ export default async function handler(req, res) {
   if (!message) return res.status(400).json({ ok: false, error: "missing_message" });
   if (message.length > 800) return res.status(400).json({ ok: false, error: "too_long" });
 
+  const grounded = KNOWLEDGE.answer(message, body);
+  // Fixed facts and demonstrations should be immediate, accurate and independent
+  // of provider availability. Other conversation remains contextual model work.
+  if (grounded && ["price", "privacy", "demo"].includes(grounded.intent)) {
+    return res.status(200).json(grounded);
+  }
   try {
     const out = await runChat(userPayload(body));
+    if (!out.reply) throw new Error("empty_reply");
+    // This endpoint cannot execute bookings or messages. A model's action is
+    // only a UI suggestion, never evidence that a transaction succeeded.
+    if (/\b(?:you(?:'re| are) booked|(?:i(?:'ve| have)|we(?:'ve| have)) (?:booked|scheduled|sent|saved|filed|emailed|notified)|(?:message|booking|appointment) (?:is |has been )?(?:confirmed|sent|saved)|it's on the book)\b/i.test(out.reply)) {
+      return res.status(200).json(grounded || {
+        ok: true, source: "company-knowledge", intent: "contact", action: "none", extract: {},
+        reply: "I can help with that request. It needs to be submitted through the booking or message form before I can confirm it."
+      });
+    }
+    if (!KNOWLEDGE.wantsBooking(message) && !/awaiting_|confirming/.test(String(body.phase || ""))) {
+      if (["show_calendar", "open_book", "need_fields"].includes(out.action)) out.action = "none";
+    }
+    const validSlots = new Set((Array.isArray(body.slotHints) ? body.slotHints : []).map(s => s.iso));
+    if (!validSlots.has(out.extract.slotIso)) out.extract.slotIso = "";
     return res.status(200).json(out);
   } catch (e) {
-    const code = e && e.code === "llm_not_configured" ? "llm_not_configured" : "llm_failed";
-    return res.status(code === "llm_not_configured" ? 501 : 502).json({
-      ok: false,
-      error: code,
+    if (grounded) return res.status(200).json(grounded);
+    // A provider outage must still leave the receptionist useful and present.
+    return res.status(200).json({
+      ok: true, source: "company-knowledge", intent: "unknown", action: "none", extract: {},
+      reply: "I can help you explore our AI automation services, try a sample receptionist conversation, or arrange a discovery. What would you like to focus on?"
     });
+
   }
 }

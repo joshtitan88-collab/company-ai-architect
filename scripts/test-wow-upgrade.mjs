@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import deposit from "../api/deposit.js";
 import tavusSession from "../api/tavus-session.js";
-import { createGoogleBooking, getGoogleBusy } from "../api/google-calendar.js";
+import { createGoogleBooking, getGoogleBusy } from "../api/_google-calendar.js";
 
 function res() {
   return {

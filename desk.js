@@ -26,6 +26,9 @@ const vidProcess = document.getElementById("vidProcess");
 const stateEl = document.getElementById("state");
 
 let remoteSlots = [];
+let slotsStatus = "loading";
+let bookingBusy = false;
+let messageBusy = false;
 let selected = null;
 let depositConfig = { enabled: false, amount: 0 };
 let lastBooking = null;
@@ -102,11 +105,16 @@ let fadeTimer = 0;
 
 function setMode(next) {
   mode = next;
+  window.dispatchEvent(new CustomEvent("sam:mode", { detail: { mode: next } }));
   desk.classList.remove("talking", "listening", "processing");
   if (next === "talk") desk.classList.add("talking");
   if (next === "listen") desk.classList.add("listening");
   if (next === "process") desk.classList.add("processing");
-  setStatus(next === "listen" ? "Listening" : next === "process" ? "Working" : "");
+  setStatus(next === "listen" ? "Listening" : next === "process" ? "Thinking…" : next === "talk" ? "Speaking" : "Ready when you are");
+  if (window.Sam3D && Sam3D.active()) {
+    Object.values(VIDS).forEach(el => { if (el) { el.pause(); el.muted = true; } });
+    return;
+  }
   if (reduceMotion) return;
   const active = VIDS[next] || vidIdle;
   Object.entries(VIDS).forEach(([k, el]) => {
@@ -137,12 +145,12 @@ function setMode(next) {
 window.addEventListener("samvoice:start", () => setMode("talk"));
 window.addEventListener("samvoice:end", () => { if (mode === "talk") setMode("idle"); });
 window.addEventListener("samvoice:cancel", () => { if (mode === "talk") setMode("idle"); });
-window.addEventListener("samvoice:unavailable", (e) => {
-  const len = (e && e.detail && e.detail.text ? e.detail.text.length : 80);
-  setMode("talk");
-  clearTimeout(talkTimer);
-  talkTimer = setTimeout(() => { if (mode === "talk") setMode("idle"); }, Math.min(8000, 80 * len));
+window.addEventListener("samvoice:loading", () => setMode("process"));
+window.addEventListener("samvoice:unavailable", () => {
+  setMode("idle");
+  if (hint) { hint.textContent = "Voice is unavailable right now. You can keep chatting here."; hint.classList.remove("hidden"); }
 });
+window.addEventListener("sam3d:ready", () => setMode(mode));
 
 function stopEverything(reason) {
   clearTimeout(processTimer);
@@ -169,18 +177,7 @@ function speak(text, expectedTurn) {
   said.textContent = text;
   if (hint) hint.classList.add("hidden");
   addLog("sam", text);
-  if (window.SamAvatar && SamAvatar.active()) {
-    SamAvatar.speak(text);
-    return;
-  }
-  if (text === GREETING && vidTalk && !reduceMotion) {
-    // The greeting clip carries Sam's real voice — play it unmuted, skip TTS.
-    vidTalk.dataset.ownAudio = "1";
-    setTalkClip(GREETING_CLIP, false);
-    vidTalk.onended = () => { vidTalk.onended = null; vidTalk.dataset.ownAudio = ""; setMode("idle"); };
-    setMode("talk");
-    return;
-  }
+  // One Eve audio authority handles every line, including the greeting.
   if (vidTalk && !reduceMotion) {
     // Generic mouth loop for every non-greeting line — muted, looping.
     vidTalk.dataset.ownAudio = "";
@@ -194,13 +191,17 @@ function speak(text, expectedTurn) {
 function receive(text) {
   const t = (text || "").trim();
   if (!t) return;
-  if (!started) begin();
+  if (/^(?:stop|stop speaking|be quiet|quiet|pause)[.!]*$/i.test(t)) { stopEverything("visitor_stop"); turnNumber++; setMode("idle"); addLog("sam", "Of course. I’m here when you’re ready."); said.textContent = "Of course. I’m here when you’re ready."; return; }
+  if (!started) begin(false);
   stopEverything("visitor_interrupt");
   const myTurn = ++turnNumber;
   turnController = typeof AbortController !== "undefined" ? new AbortController() : null;
   addLog("you", t);
   setMode("process");
-  processTimer = setTimeout(() => handle(t, myTurn, turnController ? turnController.signal : null), 120);
+  const signal = turnController ? turnController.signal : null;
+  handle(t, myTurn, signal).catch(() => {
+    if (myTurn === turnNumber) speak("Something interrupted that response. Please try again.", myTurn);
+  });
 }
 
 function addLog(who, text) {
@@ -208,6 +209,7 @@ function addLog(who, text) {
   d.className = who === "you" ? "you" : "sam";
   d.textContent = (who === "you" ? "You: " : "Sam: ") + text;
   logEl.appendChild(d);
+  while (logEl.children.length > 40) logEl.firstChild.remove();
   logEl.scrollTop = logEl.scrollHeight;
 }
 
@@ -215,7 +217,7 @@ function hidePanels() {
   calEl.classList.add("hidden");
   cardsEl.classList.add("hidden");
   bookEl.classList.add("hidden");
-  depositEl.classList.add("hidden");
+  if (depositEl) depositEl.classList.add("hidden");
 }
 
 function showCards(title, items) {
@@ -246,7 +248,8 @@ function renderCal(focusDay) {
   const days = [...byDay.keys()];
   hidePanels();
   if (!days.length) {
-    calEl.innerHTML = `<h3>Open discovery times</h3><p class="fine">No open weekday slots in this window. Name a time and I'll still take the request.</p>`;
+    calEl.innerHTML = `<h3>Discovery availability</h3><p class="fine">${slotsStatus === "error" ? "I can’t check availability right now. Please retry, or leave a message with your preferred time." : slotsStatus === "loading" ? "Checking the latest openings…" : "No openings in this window. You can leave a message with your preferred time."}</p><button type="button" id="retrySlots">Check again</button>`;
+    calEl.querySelector("#retrySlots").addEventListener("click", async () => { await loadSlots(); renderCal(); });
     calEl.classList.remove("hidden");
     return;
   }
@@ -265,6 +268,8 @@ function renderCal(focusDay) {
   calEl.classList.remove("hidden");
   calEl.querySelectorAll(".cal-day").forEach((b) => b.addEventListener("click", () => renderCal(b.dataset.day)));
   calEl.querySelectorAll(".slot").forEach((b) => b.addEventListener("click", () => {
+    stopEverything("slot_selected");
+    turnNumber++;
     selected = { iso: b.dataset.iso, start: Number(b.dataset.ts) };
     const follow = SamNLU.selectSlot(session, selected);
     if (follow && follow.reply) speak(follow.reply);
@@ -295,57 +300,43 @@ function sessionId() {
 }
 
 async function postBook(payload) {
-  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
-  const body = {
-    ...payload,
-    ...SamQualify.fields(qual),
-    timezone: tz,
-    idempotencyKey: idemKey(),
-    sessionId: sessionId(),
-  };
+  if (bookingBusy) return false;
+  bookingBusy = true;
+  const bookingTurn = turnNumber;
+  const body = { ...payload, ...SamQualify.fields(qual),
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
+    idempotencyKey: idemKey(), sessionId: sessionId() };
   try {
-    const r = await fetch("/api/book", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const r = await fetch("/api/book", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(45000) });
     const data = await r.json().catch(() => ({}));
-    if (r.status === 409 && data.error === "slot_taken") {
-      speak("That time just filled. Here is what's still open.");
-      renderCal();
-      return false;
-    }
-    if (!r.ok || !data.ok) {
-      speak("I've noted your interest, and someone will follow up within a few hours.");
-      return false;
-    }
-    if (data.duplicate) {
-      speak("You're already on the book for that time.");
-      lastBooking = { ...payload, bookingId: data.id, slotIso: selected ? selected.iso : payload.slotIso };
+    if (r.status === 409) {
+      session.phase = "awaiting_slot";
       selected = null;
-      showPostBooking();
-      return true;
+      session.booking.slotIso = "";
+      await loadSlots();
+      if (bookingTurn === turnNumber) { speak("That time has just been taken. Let's choose another opening.", bookingTurn); renderCal(); }
+      return false;
     }
-    setMode("process");
-    const bookingTurn = turnNumber;
-    deferredReplyTimer = setTimeout(() => speak("You're set. You'll get a confirmation shortly. I'm glad we found a time.", bookingTurn), 500);
-    lastBooking = { ...payload, bookingId: data.id, slotIso: selected ? selected.iso : payload.slotIso };
-    // Remember the booking for returning visitors — before selected is cleared.
-    const slotLabelEl = document.getElementById("slotLabel");
-    saveVisitor({
-      seen: true,
-      lastBooking: {
-        slotLabel: slotLabelEl ? slotLabelEl.textContent : "",
-        iso: selected ? selected.iso : "",
-      },
-    });
+    if (!r.ok || !data.ok || !data.id) throw new Error("booking_failed");
+    const confirmed = data.status === "confirmed";
+    session.phase = confirmed ? "booked" : "requested";
+    lastBooking = { ...payload, bookingId: data.id, slotIso: payload.slotIso, status: data.status, confirmed, emailSent: !!data.confirmationEmail?.sent };
+    saveVisitor({ seen: true, lastBooking: { iso: payload.slotIso, slotLabel: document.getElementById("slotLabel").textContent, confirmed } });
     selected = null;
-    showPostBooking();
+    if (bookingTurn === turnNumber) {
+      speak(confirmed
+        ? "Your discovery appointment is confirmed." + (data.confirmationEmail?.sent ? " A confirmation email has been sent." : " You can add the time to your calendar below.")
+        : "Your appointment request has been saved for the team. It still needs confirmation." + (data.confirmationEmail?.sent ? " I've sent an email acknowledging your request." : ""), bookingTurn);
+      showPostBooking();
+    } else {
+      addLog("sam", confirmed ? "Your discovery appointment was confirmed." : "Your discovery request was saved and is awaiting confirmation.");
+    }
     return true;
   } catch {
-    speak("I could not file that slot just now. Try again, or leave me a message and someone will follow up within a few hours.");
+    session.phase = "confirming";
+    if (bookingTurn === turnNumber) speak("I couldn't confirm that submission. Your details are still here; please try again.", bookingTurn);
     return false;
-  }
+  } finally { bookingBusy = false; }
 }
 
 function googleCalendarUrl(booking) {
@@ -365,11 +356,16 @@ function googleCalendarUrl(booking) {
 
 function showPostBooking() {
   hidePanels();
-  googleCal.href = googleCalendarUrl(lastBooking);
-  depositBtn.classList.toggle("hidden", !depositConfig.enabled);
-  depositStatus.textContent = depositConfig.enabled
-    ? `Optional deposit: $${(depositConfig.amount / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}.`
-    : "Your appointment is recorded. Deposit checkout is not enabled yet.";
+  if (!depositEl || !lastBooking) return;
+  const confirmed = lastBooking.confirmed;
+  const title = document.getElementById("bookingHeading");
+  if (title) title.textContent = confirmed ? "Your discovery is confirmed" : "Your request is with the team";
+  googleCal.href = confirmed ? googleCalendarUrl(lastBooking) : "#";
+  googleCal.classList.toggle("hidden", !confirmed);
+  depositBtn.classList.toggle("hidden", !confirmed || !depositConfig.enabled);
+  const explanation = depositEl.querySelector(".fine");
+  if (explanation) explanation.textContent = confirmed ? "Your 30-minute discovery call is free." : "The team will review your preferred time. This is not a confirmed appointment yet.";
+  depositStatus.textContent = confirmed && depositConfig.enabled ? `Optional deposit: $${(depositConfig.amount / 100).toFixed(2)}.` : "";
   depositEl.classList.remove("hidden");
 }
 
@@ -384,6 +380,7 @@ async function handle(text, myTurn, signal) {
 
   // Message intake wins while active or explicitly requested.
   if (SamMessages.active(msgSession) || SamMessages.wants(text)) {
+    if (messageBusy) { speak("Your message is being submitted. I will show the result here.", myTurn); return; }
     const nextMessageSession = cloneState(msgSession);
     const turn = await SamMessages.turnSmart(nextMessageSession, text);
     if (myTurn !== turnNumber || (signal && signal.aborted)) return;
@@ -391,16 +388,18 @@ async function handle(text, myTurn, signal) {
     speak(turn.reply, myTurn);
     if (turn.action === "handoff_book") { renderCal(); return; }
     if (turn.action === "submit_message") {
+      messageBusy = true;
       try {
-        const r = await fetch("/api/message", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(turn.payload),
-        });
-        if (!r.ok) speak(SamMessages.LINES.send_failed);
+        const r = await fetch("/api/message", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(turn.payload), signal: AbortSignal.timeout(20000) });
+        const data = await r.json().catch(() => ({}));
+        const ok = !!(r.ok && data.ok && data.id);
+        SamMessages.markSubmitted(msgSession, ok);
+        const line = ok ? SamMessages.LINES.sent_short : SamMessages.LINES.send_failed;
+        if (myTurn === turnNumber) speak(line, myTurn); else addLog("sam", line);
       } catch {
-        speak(SamMessages.LINES.send_failed);
-      }
+        SamMessages.markSubmitted(msgSession, false);
+        if (myTurn === turnNumber) speak(SamMessages.LINES.send_failed, myTurn);
+      } finally { messageBusy = false; }
     }
     return;
   }
@@ -423,7 +422,7 @@ async function handle(text, myTurn, signal) {
   }
 }
 
-async function begin() {
+async function begin(greet = true) {
   if (started) return;
   started = true;
   enterBtn.classList.add("gone");
@@ -431,19 +430,20 @@ async function begin() {
   armVideos();
   setMode("process");
   const openingTurn = turnNumber;
-  if (window.SamAvatar) await SamAvatar.start();
+  if (!greet) { q.focus(); return; }
+  SamNLU.greetingTurn(session);
   if (openingTurn !== turnNumber) return;
   const visitor = getVisitor();
   if (visitor && visitor.seen) {
     let line = "Welcome back — good to see you again.";
     const lb = visitor.lastBooking;
     if (lb && lb.iso && new Date(lb.iso).getTime() > Date.now()) {
-      line += " You're on the book for " + lb.slotLabel + ". Anything else I can help with?";
+      line += (lb.confirmed ? " Your appointment is for " : " You requested ") + lb.slotLabel + ". What can I help with?";
     }
-    greetingTimer = setTimeout(() => speak(line), 250);
+    greetingTimer = setTimeout(() => speak(line, openingTurn), 50);
   } else {
     saveVisitor({ seen: true, lastBooking: (visitor && visitor.lastBooking) || null });
-    greetingTimer = setTimeout(() => speak(GREETING), 250);
+    greetingTimer = setTimeout(() => speak(GREETING, openingTurn), 50);
   }
   q.focus();
 }
@@ -468,6 +468,8 @@ async function sttFallback() {
     q.focus();
     return;
   }
+  stopEverything("visitor_barge_in");
+  turnNumber++;
   sttBusy = true;
   micBtn.classList.add("live");
   setMode("listen");
@@ -492,15 +494,16 @@ if (Rec) {
   rec.interimResults = false;
   rec.onresult = (e) => receive(e.results[0][0].transcript);
   rec.onstart = () => { stopEverything("visitor_barge_in"); turnNumber += 1; micBtn.classList.add("live"); setMode("listen"); };
+  rec.onerror = () => { micBtn.classList.remove("live"); setMode("idle"); if (hint) { hint.textContent = "The microphone didn’t start. You can type your message below."; hint.classList.remove("hidden"); } };
   rec.onend = () => { micBtn.classList.remove("live"); if (mode === "listen") setMode("idle"); };
   micBtn.addEventListener("click", () => {
-    if (!started) begin();
+    if (!started) begin(false);
     try { rec.start(); }
     catch { sttFallback(); }
   });
 } else {
   micBtn.addEventListener("click", () => {
-    if (!started) begin();
+    if (!started) begin(false);
     sttFallback();
   });
 }
@@ -545,7 +548,10 @@ if (depositBtn) depositBtn.addEventListener("click", async () => {
   }
 });
 
-enterBtn.addEventListener("click", begin);
+enterBtn.addEventListener("click", () => begin());
+document.querySelectorAll("[data-prompt]").forEach(el => el.addEventListener("click", () => receive(el.dataset.prompt)));
+document.getElementById("stopSam")?.addEventListener("click", () => { stopEverything("visitor_stop"); turnNumber++; setMode("idle"); });
+window.addEventListener("pagehide", () => { stopEverything("pagehide"); turnNumber++; });
 ["vidIdle", "vidTalk", "vidListen", "vidProcess"].forEach((id) => {
   const el = document.getElementById(id);
   if (!el) return;
@@ -554,10 +560,16 @@ enterBtn.addEventListener("click", begin);
   el.addEventListener("error", () => {});
 });
 
-fetch("/api/slots")
-  .then((r) => r.json())
-  .then((d) => { remoteSlots = d.slots || []; })
-  .catch(() => { remoteSlots = []; });
+async function loadSlots() {
+  slotsStatus = "loading";
+  try {
+    const r = await fetch("/api/slots", { signal: AbortSignal.timeout(20000) });
+    const data = await r.json();
+    if (!r.ok || !Array.isArray(data.slots)) throw new Error("slots_failed");
+    remoteSlots = data.slots; slotsStatus = "ready";
+  } catch { remoteSlots = []; slotsStatus = "error"; }
+}
+loadSlots();
 
 fetch("/api/deposit")
   .then((r) => r.json())

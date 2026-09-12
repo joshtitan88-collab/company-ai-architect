@@ -37,6 +37,8 @@
 (function (root) {
   "use strict";
 
+  const KNOWLEDGE = root.SamKnowledge || (typeof require === "function" ? require("./sam-knowledge.js") : null);
+
   const GREETING =
     "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?";
   // SAM.md: never a personal mailbox, never a specific person. Sam takes a
@@ -45,25 +47,25 @@
 
   const LINES = {
     hello: GREETING,
-    hello_again: "Sam again. Discovery, prices, privacy, or I can book a free thirty minutes.",
+    hello_again: "Hi again. What would you like to explore?",
     product:
-      "Local AI on hardware you own — a tower or a mini at your shop. Calls, jobs, and notes stay there. Not a ChatGPT login. Discovery is free. Want the calendar?",
+      "We design AI automation around how your business works, from customer intake to useful job notes and connected workflows. Private AI on hardware you own is one option. What would you like to improve?",
     price:
       "Discovery is free. The written audit is one thousand five hundred. Architect plus a fourteen-day package starts at four thousand five hundred. You keep the map even if you stop after the audit.",
     privacy:
-      "Customer files do not belong on this site. The discovery call does not need them. When we put a package in, models stay on a tower, mini, or machine at your shop.",
+      "A private client installation can run on hardware you own. This website uses hosted services, and chat may be processed by an AI provider. Please keep customer records and sensitive information out of this conversation.",
     schedule: "Here are open discovery times in Eastern. Openings only — not who is on the book. Pick a slot.",
     schedule_none:
-      "No open weekday slots in this window. Name a day and time and I'll still take the request, or leave me a message and the right person will follow up.",
-    leak: "That's the leak. I catch it before it becomes a voicemail. Pick a free thirty minutes. I'll put it on the book.",
+      "I don't have confirmed openings to show in this window. You can try the calendar again or leave a message with your preferred time.",
+    leak: "A well-designed intake workflow can capture the details that get lost between calls and jobs. Which part of that process would you most like to improve?",
     contact: "I can take a message right here and it goes straight to the right team — or I can book you a free thirty-minute discovery now.",
     human: "I take the front, and every booking goes straight to the team. Leave me a message, or pick a discovery slot and I'll file it.",
     hours: "Discovery is weekdays, nine to five Eastern, thirty minutes, free. Openings only on the calendar — no names.",
-    thanks: "You're welcome. Discovery is free if you want a slot.",
+    thanks: "You're very welcome. I'm here if anything else comes to mind.",
     bye: "Glad to help. I'm right here whenever you need us.",
     none: "Tell me a little more about what you're trying to improve, and I'll help you think it through.",
-    booked: "It's on the book. You'll get a confirmation. Nothing else is stored on this page.",
-    book_fail: "I could not file that slot just now. Try again, or leave me a message and someone will follow up within a few hours.",
+    booked: "Your discovery booking is confirmed. I'm glad we found a time.",
+    book_fail: "I couldn't confirm that booking just now. Please try again or leave a message with your preferred time.",
     need_name: "What's your name?",
     need_email: "Work email?",
     need_company: "Shop or company name?",
@@ -111,6 +113,8 @@
       greeted: false,
       booking: { name: "", email: "", company: "", pain: "", slotIso: "", slotStart: 0 },
       history: [],
+      demo: null,
+      businessContext: "",
       lastIntent: "",
       lastAction: "none",
     };
@@ -136,7 +140,7 @@
     t = t.replace(/\bthe install\b/gi, "the fourteen-day package");
     t = t.replace(/\bDesk:\s*/g, "Sam: ");
     t = t.replace(/\s{2,}/g, " ").trim();
-    if (t.length > 420) t = t.slice(0, 417) + "…";
+    if (t.length > 650) t = t.slice(0, 647) + "…";
     return t;
   }
 
@@ -152,7 +156,7 @@
     );
     if (labeled) {
       const n = labeled[1].replace(/\s+(from|at|with|and)\b.*$/i, "").trim();
-      if (n && !/@/.test(n) && !/^(hi|hello|yes|no|ok|okay)$/i.test(n)) return n;
+      if (n && !/@/.test(n) && !/^(hi|hello|yes|no|ok|okay|a|an|the|interested|looking|trying|calling|ready|not|here|curious|a plumber)(?:\s|$)/i.test(n)) return n;
     }
     if (phase === "awaiting_name") {
       const stripped = t.replace(extractEmail(t), "").replace(/[,.].*$/, "").trim();
@@ -343,7 +347,7 @@
     const phase = (session && session.phase) || "idle";
 
     if (/^(hi|hello|hey|howdy|good (morning|afternoon|evening)|yo)\b/.test(s) || /^(hi|hello|hey)[.!?]*$/.test(s)) {
-      addScore(scores, "greet", 5);
+      addScore(scores, "greet", /^(hi|hello|hey|howdy|yo)[.!?]*$/.test(s) ? 5 : 1);
     }
     if (/\bwho are you\b|\byour name\b|\bare you sam\b|\breceptionist\b|\bwhat(?:'s| is) this\b/.test(s)) {
       addScore(scores, "who", 5);
@@ -358,7 +362,7 @@
     if (/\b(privacy|hipaa|pii|on[- ]prem|onprem|who sees|customer (files|data)|leave the building|chatgpt login)\b/.test(s)) {
       addScore(scores, "privacy", 6);
     }
-    if (/\b(book|schedul|calendar|availab|slot|consult|discovery|appoint|set up a (call|time)|thirty minutes|30 minutes|free call)\b/.test(s)) {
+    if (/\b(book|schedule|scheduling|calendar|available|availability|slot|consult|discovery|appointment|set up a (call|time)|thirty minutes|30 minutes|free call)\b/.test(s)) {
       addScore(scores, "book", 6);
     }
     if (/\b(email|phone|contact|reach you|write you)\b/.test(s)) {
@@ -383,6 +387,11 @@
       addScore(scores, "confirm", 5);
     }
     if (/^(no|nope|not now|cancel|never ?mind|stop)[.!?]*$/.test(s)) addScore(scores, "deny", 5);
+
+    const isDemo = KNOWLEDGE && KNOWLEDGE.wantsDemo(s);
+    const capabilityQuestion = /\b(?:can|could|would|how do|how would|are you able)\b/.test(s) && /\b(?:calls?|phone|messages?|appointments?|scheduling|booking|receptionist)\b/.test(s) && !(KNOWLEDGE && KNOWLEDGE.wantsBooking(s));
+    if (isDemo) return { intent: "demo", confidence: 1, scores: { demo: 10 }, close: false };
+    if (capabilityQuestion) return { intent: "product", confidence: 1, scores: { product: 10 }, close: false };
 
     const email = extractEmail(text);
     if (email) addScore(scores, "provide_contact", 4);
@@ -507,7 +516,7 @@
         };
       case "who":
         return {
-          reply: "I'm Sam, the receptionist for Company AI Architect. I book discovery, quote the packages, and talk privacy. Not a ChatGPT login.",
+          reply: "I'm Sam, Company AI Architect's AI receptionist. I can explain our services, demonstrate a customer conversation, help you schedule discovery, or take a message.",
           action: "none",
         };
       case "product":
@@ -521,9 +530,9 @@
       case "human":
         return { reply: LINES.human, action: "show_calendar" };
       case "hours":
-        return { reply: LINES.hours, action: "show_calendar" };
+        return { reply: LINES.hours, action: "none" };
       case "shop_leak":
-        return { reply: LINES.leak + openingsLine(slots), action: "show_calendar" };
+        return { reply: LINES.leak, action: "none" };
       case "thanks":
         return { reply: LINES.thanks, action: "none" };
       case "bye":
@@ -542,7 +551,6 @@
     // The rules own transactional accuracy; the model owns normal dialogue.
     // This keeps booking deterministic while letting even familiar questions
     // sound contextual instead of replaying the same canned paragraph.
-    if (session.phase.indexOf("awaiting_") === 0 || session.phase === "confirming") return false;
     if (["book", "slot_pick", "provide_contact", "confirm", "deny"].includes(guess.intent)) return false;
     return true;
   }
@@ -565,6 +573,8 @@
           message: text,
           history: session.history.slice(-8),
           phase: session.phase,
+          businessContext: session.businessContext,
+          demo: session.demo,
           booking: session.booking,
           guess: { intent: guess.intent, confidence: guess.confidence },
           slotHints: (slots || []).slice(0, 8).map((s) => ({ iso: s.iso, label: fmtSlot(s) })),
@@ -626,9 +636,26 @@
       return result(session, "none", session.greeted ? LINES.none : GREETING, "none");
     }
 
-    const extract = extractAll(text, session, slots);
-    ingest(session, text, extract);
+    if (/\b(?:i|we) (?:own|run|operate|manage|work|have)|my (?:business|company|office|practice)|(?:our|my) (?:crm|software|team)/i.test(text)) session.businessContext = (session.businessContext + " " + text).trim().slice(-800);
     const guess = classify(text, session);
+    const grounded = KNOWLEDGE ? KNOWLEDGE.answer(text, session) : null;
+    if (grounded && (["demo", "price", "privacy"].includes(grounded.intent) || Object.prototype.hasOwnProperty.call(grounded, "demo"))) {
+      if (Object.prototype.hasOwnProperty.call(grounded, "demo")) session.demo = grounded.demo;
+      ingest(session, text, {});
+      remember(session, grounded.reply);
+      return result(session, grounded.intent, grounded.reply, grounded.action, { source: grounded.source, demo: session.demo });
+    }
+    // Only transactional turns can select a real time or fill a pending field.
+    // A business description or a question is not consent to start booking.
+    const question = /\?|^(?:can|could|would|how|what|where|why|do|does|is|are)\b/i.test(text);
+    if (grounded && question && !KNOWLEDGE.wantsBooking(text)) {
+      ingest(session, text, {});
+      remember(session, grounded.reply);
+      return result(session, grounded.intent, grounded.reply, grounded.action, { source: grounded.source });
+    }
+    const transactional = (!question && ["book", "slot_pick", "provide_contact", "confirm"].includes(guess.intent)) || !!(KNOWLEDGE && KNOWLEDGE.wantsBooking(text));
+    const extract = extractAll(text, transactional ? session : { phase: "idle" }, transactional ? slots : []);
+    ingest(session, text, extract);
 
     if (extract.slotIso) {
       session.booking.slotIso = extract.slotIso;
@@ -650,7 +677,6 @@
       (intent === "book" ||
         intent === "slot_pick" ||
         intent === "provide_contact" ||
-        intent === "shop_leak" ||
         intent === "confirm")
     ) {
       if (readyToBook(session)) {
@@ -673,7 +699,7 @@
     }
 
     const collecting = session.phase.indexOf("awaiting_") === 0 || session.phase === "confirming";
-    if (collecting && (intent === "provide_contact" || intent === "slot_pick" || intent === "confirm" || intent === "unknown")) {
+    if (collecting && (intent === "provide_contact" || intent === "slot_pick" || intent === "confirm" || intent === "deny" || intent === "unknown")) {
       if (intent === "deny") {
         session.phase = "idle";
         const reply = "No problem. Discovery stays free whenever you want it.";
@@ -688,17 +714,17 @@
             ? LINES.booked
             : "That's " + when + " Eastern. I'll file it now?";
         if (intent === "confirm" || (opts && opts.autoBook)) {
-          session.phase = "booked";
-          remember(session, LINES.booked);
-          return result(session, "book", LINES.booked, "submit_book", { source: "rules" });
+          session.phase = "submitting";
+          remember(session, "I'll submit your discovery request now.");
+          return result(session, "book", "I'll submit your discovery request now.", "submit_book", { source: "rules" });
         }
         remember(session, reply);
         return result(session, "book", reply, "open_book", { source: "rules" });
       }
       if (intent === "confirm" && session.phase === "confirming" && readyToBook(session)) {
-        session.phase = "booked";
-        remember(session, LINES.booked);
-        return result(session, "book", LINES.booked, "submit_book", { source: "rules" });
+        session.phase = "submitting";
+        remember(session, "I'll submit your discovery request now.");
+        return result(session, "book", "I'll submit your discovery request now.", "submit_book", { source: "rules" });
       }
       const nxt = askNext(session);
       remember(session, nxt.reply);
@@ -727,8 +753,8 @@
 
     if (intent === "deny") {
       session.phase = "idle";
-      remember(session, "No problem. What else — prices, privacy, or a later time?");
-      return result(session, "deny", "No problem. What else — prices, privacy, or a later time?", "none");
+      remember(session, "Of course. We can leave that for now. What else would you like to explore?");
+      return result(session, "deny", "Of course. We can leave that for now. What else would you like to explore?", "none");
     }
 
     if (shouldCallLlm(guess, session, text) && !(opts && opts.offline)) {
@@ -736,11 +762,11 @@
       if (llm && (llm.reply || llm.intent)) {
         source = llm.source || "llm";
         if (llm.intent && llm.intent !== "unknown") intent = llm.intent;
-        applyExtract(session, llm.extract);
-        if (llm.extract && llm.extract.slotIso) {
-          session.booking.slotIso = llm.extract.slotIso;
-          session.booking.slotStart = llm.extract.slotStart || Date.parse(llm.extract.slotIso) || 0;
-        }
+        const modelExtract = Object.assign({}, llm.extract || {});
+        const suppliedSlot = slots.find(s => s.iso === modelExtract.slotIso);
+        if (!suppliedSlot || !transactional) delete modelExtract.slotIso;
+        else modelExtract.slotStart = suppliedSlot.start;
+        applyExtract(session, modelExtract);
         let action = llm.action || "none";
         let reply = sanitize(llm.reply || "");
         if (!reply) {
@@ -749,6 +775,8 @@
           action = built.action;
           source = "rules";
         }
+        if (intent === "book" && !transactional) intent = "product";
+        if (!transactional && ["show_calendar", "open_book", "need_fields"].includes(action)) action = "none";
         if (intent === "book" && action === "none") action = "show_calendar";
         if (intent === "price" && action === "none") action = "show_packages";
         if (intent === "product" && action === "none") action = "show_stages";
@@ -764,8 +792,9 @@
     }
 
     if (intent === "unknown" || intent === "provide_contact") intent = "none";
-    const built = localReply(session, intent === "none" ? "none" : intent, slots);
-    if (intent === "book" || intent === "shop_leak" || intent === "hours") {
+    const built = (!transactional && grounded) || localReply(session, intent === "none" ? "none" : intent, slots);
+    if (grounded && !transactional) { intent = grounded.intent; source = grounded.source; }
+    if (intent === "book") {
       session.phase = "awaiting_slot";
     }
     remember(session, built.reply);
@@ -793,18 +822,25 @@
 
   async function submitBook(session) {
     const payload = bookPayload(session);
-    const r = await fetch("/api/book", {
+    let r;
+    try { r = await fetch("/api/book", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
-    });
+    }); } catch (_e) {
+      session.phase = "confirming";
+      return result(session, "book", LINES.book_fail, "open_book", { error: "network_error" });
+    }
     const data = await r.json().catch(() => ({}));
     if (!r.ok || !data.ok) {
+      session.phase = "confirming";
       return result(session, "book", LINES.book_fail, "open_book", { source: "rules", error: data.error || "book_failed" });
     }
-    session.phase = "booked";
-    remember(session, LINES.booked);
-    return result(session, "book", LINES.booked, "booked", { source: "rules", id: data.id });
+    const confirmed = data.status === "confirmed";
+    session.phase = confirmed ? "booked" : "requested";
+    const line = confirmed ? "Your booking is confirmed." : "Your appointment request was saved and still needs confirmation.";
+    remember(session, line);
+    return result(session, "book", line, "booked", { source: "rules", id: data.id, status: data.status });
   }
 
   const api = {

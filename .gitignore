@@ -4,3 +4,11 @@ index.single.html
 .vercel
 .local-intake/
 assets/voice/.rendered-map.json
+
+
+node_modules/
+dist/
+.cache/
+assets/3d/
+sam-3d.bundle.js*
+.local-intake/

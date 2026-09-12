@@ -1,0 +1,27 @@
+name: SAM quality
+on:
+  push:
+    branches: [main, sam-3d-concierge-20260912]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify conversation, audio and reception behavior
+        run: |
+          node scripts/test-sam-voice.mjs
+          node scripts/test-sam-conversation.mjs
+          node scripts/test-reception-reliability.mjs
+      - name: Build production website and verify pinned avatar
+        run: npm run build
+      - name: Verify public assets and API entrypoints
+        run: node scripts/test-release-layout.mjs
