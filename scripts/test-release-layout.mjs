@@ -13,6 +13,13 @@ for (const file of ['index.html', 'receptionist.html', 'sam-3d.bundle.js', 'asse
 const publicFiles = await readdir('dist');
 assert.ok(!publicFiles.includes('sam-system-prompt.txt'), 'Private prompt must not be published');
 assert.ok(!publicFiles.includes('api'), 'API source must not be copied to static output');
-const entry = await readFile('dist/index.html', 'utf8');
-assert.ok(entry.includes('sam-3d.bundle.js'), 'Homepage must load the real 3D renderer');
+for (const name of ['index.html', 'receptionist.html']) {
+  const entry = await readFile('dist/' + name, 'utf8');
+  assert.ok(entry.includes('data-avatar="sam-realistic"'), 'Keep the original Sam identity on both entry pages');
+  assert.ok(!entry.includes('sam-3d.bundle.js'), 'Do not replace Sam with the unrelated 3D character');
+  for (const asset of ['desk.jpg', 'desk-idle.mp4', 'sam-listen.mp4', 'sam-process.mp4', 'sam-imagine-speak.mp4']) {
+    assert.ok(entry.includes(asset), 'Original Sam state asset missing: ' + asset);
+    assert.ok((await stat('dist/assets/' + asset)).size > 0, 'Missing original Sam media');
+  }
+}
 console.log('PASS production assets, private-source exclusion and 11 valid API endpoints');

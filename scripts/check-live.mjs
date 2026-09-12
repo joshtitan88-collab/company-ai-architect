@@ -16,7 +16,7 @@ async function check(path, method, verify) {
 }
 await check('/', 'GET', async response => {
   const html = await response.text();
-  if (!html.includes('sam-3d.bundle.js') || !html.includes('Your next great hire')) throw new Error('SAM homepage marker missing');
+  if (!html.includes('data-avatar="sam-realistic"') || !html.includes('Your next great hire')) throw new Error('SAM homepage marker missing');
   return 'SAM homepage visible without authentication';
 });
 if (!failed) {
@@ -30,8 +30,8 @@ if (!failed) {
     if (!Array.isArray(result.slots) || !['request', 'calendar'].includes(result.bookingMode)) throw new Error('invalid availability response');
     return `${result.slots.length} times; ${result.bookingMode === 'request' ? 'team confirmation required' : 'calendar availability connected'}`;
   });
-  await check('/assets/3d/sam.glb', 'HEAD');
+  await check('/assets/desk-idle.mp4', 'HEAD');
   await check('/api/stt', 'HEAD');
 }
 if (failed) process.exitCode = 1;
-else console.log('Public launch checks passed. Real microphone, rendered 3D, submissions, email and telephone still need acceptance tests.');
+else console.log('Public launch checks passed. Real microphone, avatar motion, submissions, email and telephone still need acceptance tests.');
