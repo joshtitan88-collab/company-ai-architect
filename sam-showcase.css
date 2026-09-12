@@ -1,0 +1,72 @@
+/* A calm concierge lounge: the person and the conversation share the stage. */
+.sam-showcase { cursor: auto; background: #0b101a; }
+.sam-showcase button, .sam-showcase a { cursor: pointer; }
+.sam-showcase :focus-visible { outline: 2px solid #8bdddf; outline-offset: 4px; }
+.sam-showcase .nav { position: relative; min-height: 80px; padding: 20px 4vw; background: #0b101a; border-color: #ffffff12; }
+.sam-showcase .mark { font-size: 14px; letter-spacing: .11em; }
+.nav-actions { display: flex; align-items: center; gap: 28px; font-size: 14px; }
+.nav-actions a { color: #a7b4c7; }
+.nav-actions button { padding: 11px 19px; border: 1px solid #b7c5d050; border-radius: 7px; background: transparent; }
+.sam-showcase .desk { display: grid; grid-template-columns: 48% 52%; min-height: calc(100dvh - 80px); overflow: visible; max-width: 1680px; margin: auto; }
+.sam-showcase .desk-stage { inset: 0 52% 0 0; overflow: hidden; animation: none !important; background: radial-gradient(ellipse at 55% 32%, #354555 0%, #1b2635 42%, #0b101a 80%); }
+.sam-showcase .desk-vid, .sam-showcase .desk-still { object-position: 50% 25%; }
+.sam-showcase .desk-veil { background: linear-gradient(0deg, #0b101a 0%, transparent 45%); animation: none !important; z-index: 3; }
+.sam-3d { position: absolute; inset: 0 0 0; z-index: 2; opacity: 0; transition: opacity .6s; }
+.sam-3d canvas { display: block; width: 100%; height: 100%; }
+.avatar-3d-ready .sam-3d { opacity: 1; }
+.avatar-3d-ready .desk-vid, .avatar-3d-ready .desk-still { opacity: 0 !important; }
+.avatar-caption { grid-column: 1; align-self: end; position: relative; z-index: 4; padding: 38px 4vw; pointer-events: none; }
+.avatar-caption > span { display: inline-block; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #b8c8d8; border: 1px solid #ffffff22; padding: 5px 10px; border-radius: 4px; background: #0b101aa0; }
+.avatar-caption h1 { font: 400 clamp(36px, 4.3vw, 65px)/1.02 var(--serif); color: #f7f4ec; margin: 18px 0; letter-spacing: -.025em; }
+.avatar-caption em { color: #aad9dc; font-weight: 400; }
+.avatar-caption p { color: #b5c3d3; font-size: 16px; }
+.conversation-panel { grid-column: 2; grid-row: 1; position: relative; z-index: 5; display: flex; flex-direction: column; padding: 48px clamp(24px,4vw,64px) 28px; border-left: 1px solid #ffffff10; background: #101723; min-width: 0; }
+.sam-showcase .desk-ui { padding: 0; max-width: none; }
+.conversation-heading { display: flex; gap: 12px; justify-content: space-between; align-items: center; margin-bottom: 42px; flex-wrap: wrap; }
+.conversation-heading .kicker { font: 500 12px var(--sans); letter-spacing: .14em; color: #b7c9dc; margin: 0; }
+.conversation-heading .state { font-size: 12px; color: #9ddadd; margin: 0; }
+.sam-showcase .desk-ui .said { font: 400 clamp(23px,2.35vw,35px)/1.3 var(--serif); color: #f5f2eb; min-height: 140px; text-shadow: none; overflow-wrap: anywhere; }
+.sam-showcase .desk-ui .hint { font-size: 16px; line-height: 1.6; max-width: 44ch; color: #a4b2c5; }
+.sam-showcase .enter { position: relative; inset: auto; width: 100%; padding: 18px 21px; border: 1px solid #a5dbdf70; border-radius: 8px; background: #19313b; margin: 18px 0 8px; gap: 5px; justify-content: flex-start; }
+.sam-showcase .enter-title { font: 500 17px var(--sans); text-shadow: none; display: flex; width: 100%; justify-content: space-between; }
+.sam-showcase .enter-sub { font-size: 14px; color: #adc8ce; }
+.quick-actions { display: grid; gap: 0; margin: 26px 0; border-top: 1px solid #ffffff14; }
+.quick-actions button { display: flex; gap: 18px; padding: 16px 0; color: #dbe5ee; border: 0; border-bottom: 1px solid #ffffff14; background: transparent; text-align: left; font-size: 15px; }
+.quick-actions span { color: #728ba4; font-size: 12px; padding-top: 3px; }
+.quick-actions button:hover { color: #a9e4e6; }
+.sam-showcase .dock { position: relative; inset: auto; margin-top: auto; padding: 12px 0 0; background: transparent; }
+.sam-showcase .row { max-width: none; }
+.sam-showcase .row input { min-width: 0; border-radius: 7px; font-size: 16px; padding: 14px 12px; background: #0b111c; }
+.sam-showcase .row button { border-radius: 7px; font-size: 14px; padding: 14px 13px; }
+.sam-showcase .row button.primary { background: #a8dcdf; }
+.transcript { margin: 0 0 15px; color: #9cacbf; font-size: 14px; }
+.transcript summary { cursor: pointer; padding: 8px 0; }
+.sam-showcase .log { max-height: 180px; font-size: 14px; margin: 10px 0; line-height: 1.5; overflow-wrap: anywhere; }
+.sam-showcase .log div { padding: 9px 12px; border-radius: 6px; margin: 5px 0; background: #ffffff05; }
+.sam-showcase .log .you { background: #8bdddf0a; }
+.conversation-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: #8b9db3; padding-top: 15px; }
+.conversation-footer button { border: 0; background: transparent; color: #b9c9db; font-size: 12px; padding: 4px; }
+.sam-showcase .cal, .sam-showcase .cards, .sam-showcase .bookbox, .sam-showcase .depositbox { background: #0c1420; max-height: 45vh; overflow: auto; }
+.sam-showcase .cal-day .d, .sam-showcase .fine { font-size: 14px; }
+.sam-showcase .hidden { display: none !important; }
+@media (min-width: 1600px) { .sam-showcase .desk { min-height: 850px; } }
+@media (max-width: 800px) {
+  .sam-showcase .nav { min-height: 70px; padding: 16px 20px; gap: 12px; }
+  .sam-showcase .mark { font-size: 12px; max-width: 160px; }
+  .nav-actions { gap: 15px; }
+  .nav-actions button { padding: 8px 10px; font-size: 12px; }
+  .nav-actions a { display: none; }
+  .sam-showcase .desk { grid-template-columns: 1fr; min-height: 0; }
+  .sam-showcase .desk-stage { inset: 0 0 auto; height: 430px; }
+  .avatar-caption { grid-row: 1; padding: 270px 24px 25px; min-height: 430px; }
+  .avatar-caption h1 { font-size: 39px; }
+  .avatar-caption p { display: none; }
+  .conversation-panel { grid-column: 1; grid-row: 2; padding: 28px 22px; border: 1px solid #ffffff12; border-radius: 20px 20px 0 0; }
+  .conversation-heading { margin-bottom: 25px; }
+  .sam-showcase .desk-ui .said { min-height: 0; font-size: 26px; }
+  .sam-showcase .row { gap: 7px; }
+  .sam-showcase .row button { padding: 13px 10px; }
+  .sam-showcase .row input { padding: 13px 10px; }
+  .conversation-footer { font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) { .sam-showcase * { animation: none !important; transition: none !important; } }

@@ -1,0 +1,17 @@
+{
+  "name": "company-ai-architect",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/build-avatar.mjs",
+    "dev": "node scripts/dev-server.mjs"
+  },
+  "dependencies": {
+    "@met4citizen/talkinghead": "1.7.0",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10",
+    "meshoptimizer": "0.24.0",
+    "sharp": "0.34.5"
+  }
+}

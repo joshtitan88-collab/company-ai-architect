@@ -25,7 +25,7 @@ function humanSlot(slotUtc, timezone) {
   }
 }
 
-export async function sendBookingConfirmation({ name, email, company, slotUtc, timezone }) {
+export async function sendBookingConfirmation({ name, email, company, slotUtc, timezone, status = "requested" }) {
   const key = process.env.RESEND_API_KEY;
   if (!key) return { ok: false, skipped: true };
 
@@ -34,11 +34,11 @@ export async function sendBookingConfirmation({ name, email, company, slotUtc, t
   const payload = {
     from: FROM,
     to: [email],
-    subject: `You're booked — ${when}`,
+    subject: status === "confirmed" ? `You're booked — ${when}` : `Appointment request received — ${when}`,
     text: [
       `Hi ${firstName},`,
       "",
-      `Great news — your call is confirmed for ${when} (${slotUtc} UTC).`,
+      status === "confirmed" ? `Your call is confirmed for ${when}.` : `We received your request for ${when}. Our team will confirm the appointment with you.`,
       "",
       `I'm looking forward to digging into what AI can do for ${company}. No prep needed — just bring the problems that eat your time.`,
       "",
@@ -54,6 +54,7 @@ export async function sendBookingConfirmation({ name, email, company, slotUtc, t
     try {
       const r = await fetch(RESEND_URL, {
         method: "POST",
+        signal: AbortSignal.timeout(5000),
         headers: {
           Authorization: `Bearer ${key}`,
           "content-type": "application/json",
@@ -75,3 +76,4 @@ export async function sendBookingConfirmation({ name, email, company, slotUtc, t
   }
   return { ok: false };
 }
+

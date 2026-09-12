@@ -13,16 +13,18 @@
   <meta property="og:url" content="https://companyaiarchitect.com/" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%235b8cff'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./sam-showcase.css" />
 </head>
-<body>
+<body class="sam-showcase">
   <a class="skip" href="#q">Skip to Sam</a>
   <nav class="nav">
     <a class="mark" href="./">Company AI Architect</a>
-    <a class="nav-cta" href="./privacy.html">Privacy</a>
+    <div class="nav-actions"><a href="./privacy.html">Privacy</a><button type="button" data-prompt="I would like to book a free discovery call.">Book a discovery</button></div>
   </nav>
   <main>
     <section class="desk" id="desk">
       <div class="desk-stage" aria-hidden="true">
+        <div id="sam3d" class="sam-3d"></div>
         <div id="liveAvatar" class="live-avatar"></div>
         <img class="desk-still idle" src="./assets/desk.jpg" alt="" />
         <video id="vidIdle" class="desk-vid idle" muted loop playsinline preload="auto" poster="./assets/desk.jpg">
@@ -39,27 +41,28 @@
         </video>
         <div class="desk-veil"></div>
       </div>
+      <div class="avatar-caption"><span id="avatarProgress">Preparing Sam</span><h1>Your next great hire.<br><em>Meet Sam.</em></h1><p>An AI front desk with a personal touch.</p></div>
+      <div class="conversation-panel">
       <div class="desk-ui">
-        <p class="kicker">Sam · receptionist</p>
-        <p class="state" id="state"></p>
+        <div class="conversation-heading"><p class="kicker">SAM / YOUR AI CONCIERGE</p><span class="state" id="state" role="status" aria-live="polite">Ready when you are</span></div>
         <p class="said" id="said">Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?</p>
-        <p class="hint" id="hint">Talk or type. Sam answers questions, takes messages, and books a free 30-minute discovery call.</p>
+        <p class="hint" id="hint">Explore what AI could do for your business. Ask a question, try a scenario, or find a time to talk.</p>
         <div id="calendar" class="cal hidden"></div>
         <div id="cards" class="cards hidden"></div>
         <div id="bookbox" class="bookbox hidden">
-          <h3>Hold that slot</h3>
+          <h3>Your discovery call</h3>
           <p class="fine">Requested: <span id="slotLabel"></span></p>
           <form id="bookForm">
-            <label>Your name <input name="name" required /></label>
-            <label>Work email <input name="email" type="email" required /></label>
+            <label>Your name <input name="name" autocomplete="name" required /></label>
+            <label>Work email <input name="email" type="email" autocomplete="email" required /></label>
             <label>Phone <input name="phone" type="tel" autocomplete="tel" /></label>
-            <label>Company <input name="company" required /></label>
+            <label>Company <input name="company" autocomplete="organization" required /></label>
             <label>What should she take off your plate?<textarea name="pain" rows="3" required></textarea></label>
             <button type="submit">Send the request</button>
           </form>
         </div>
         <div id="depositbox" class="depositbox hidden">
-          <h3>Your discovery is booked</h3>
+          <h3 id="bookingHeading">Your discovery request</h3>
           <p class="fine">The call is free. If you're ready to reserve implementation capacity, you can make an optional deposit securely through Stripe.</p>
           <div class="deposit-actions">
             <button type="button" id="depositBtn">Pay optional deposit</button>
@@ -69,28 +72,35 @@
         </div>
       </div>
       <button type="button" id="enter" class="enter">
-        <span class="enter-kicker">She's waiting</span>
-        <span class="enter-title">Talk to Sam</span>
-        <span class="enter-sub">Mic if you have one. Type if you don't.</span>
+        <span class="enter-title">Start a conversation <span aria-hidden="true">↗</span></span>
+        <span class="enter-sub">Hear Sam, or type below.</span>
       </button>
+      <div class="quick-actions" aria-label="Try Sam">
+        <button type="button" data-prompt="Show me a short example of how you would handle a new customer for my business."><span>01</span> See her in action</button>
+        <button type="button" data-prompt="What can Company AI Architect do for my business?"><span>02</span> Explore our services</button>
+        <button type="button" data-prompt="I would like to leave a message for the team."><span>03</span> Leave a message</button>
+      </div>
       <div class="dock">
-        <div class="log" id="log"></div>
+        <details class="transcript"><summary>Conversation history</summary><div class="log" id="log" role="log" aria-label="Conversation history"></div></details>
         <div class="row">
-          <button type="button" id="mic">Mic</button>
-          <input id="q" type="text" autocomplete="off" placeholder="What's leaking hours…" />
+          <button type="button" id="mic" aria-label="Talk to Sam" title="Talk to Sam">Talk</button>
+          <input id="q" type="text" autocomplete="off" aria-label="Your message to Sam" maxlength="800" placeholder="Tell Sam what you have in mind…" />
           <button type="button" class="primary" id="send">Send</button>
         </div>
+        <div class="conversation-footer"><span>AI receptionist · Discovery is free</span><button id="stopSam" type="button">Stop speaking</button></div>
+      </div>
       </div>
     </section>
   </main>
   <script src="./sam-voice.js"></script>
+  <script src="./sam-knowledge.js"></script>
   <script src="./desk-nlu.js"></script>
   <script src="./desk-messages.js"></script>
   <script src="./desk-qualify.js"></script>
-  <script src="./sam-states.js"></script>
   <script src="./sam-stt.js"></script>
   <script src="./sam-lipsync.js"></script>
-  <script src="./sam-avatar.js"></script>
+  <script type="module" src="./sam-3d.bundle.js"></script>
   <script src="./desk.js"></script>
 </body>
 </html>
+
