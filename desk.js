@@ -153,8 +153,10 @@ window.addEventListener("samvoice:unavailable", () => {
   if (hint) { hint.textContent = "Voice is unavailable right now. You can keep chatting here."; hint.classList.remove("hidden"); }
 });
 window.addEventListener("sam3d:ready", () => setMode(mode));
+window.addEventListener("sam3d:unavailable", () => setMode(mode));
 
 function stopEverything(reason) {
+  cancelListening();
   clearTimeout(processTimer);
   clearTimeout(talkTimer);
   clearTimeout(greetingTimer);
@@ -460,55 +462,91 @@ q.addEventListener("keydown", (e) => {
 q.addEventListener("focus", () => { if (started && mode === "idle") setMode("listen"); });
 q.addEventListener("input", () => { if (started && mode !== "talk" && mode !== "process") setMode("listen"); });
 
-// Whisper-backed fallback (local dev /api/stt) for browsers without
-// SpeechRecognition — records up to 6s, transcribes server-side.
-let sttBusy = false;
-async function sttFallback() {
-  if (sttBusy) return;
+// One listening owner. New text, Stop, navigation and another turn cancel stale input.
+let recording = null;
+let recognition = null;
+let listeningEpoch = 0;
+let micPending = false;
+function micState(active, label) {
+  micBtn.classList.toggle("live", active);
+  micBtn.textContent = active ? "Done" : "Talk";
+  micBtn.setAttribute("aria-pressed", String(active));
+  micBtn.setAttribute("aria-label", active ? "Finish speaking" : "Talk to Sam");
+  if (label) setStatus(label);
+}
+function cancelListening() {
+  listeningEpoch++;
+  micPending = false;
+  const previous = recognition; recognition = null;
+  if (previous) { previous.onresult = null; previous.onerror = null; previous.onend = null; try { previous.abort(); } catch {} }
+  const clip = recording; recording = null;
+  if (clip) clip.cancel();
+  micState(false);
+}
+function micHint(text) {
+  if (hint) { hint.textContent = text; hint.classList.remove("hidden"); }
+}
+async function sttFallback(epoch) {
+  if (epoch !== listeningEpoch) return;
+  micPending = true;
   if (!window.SamSTT || !(await SamSTT.available())) {
-    addLog("sam", "This browser has no speech recognition — type and I'll help just the same.");
-    q.focus();
-    return;
+    if (epoch !== listeningEpoch) return;
+    micPending = false; setMode("idle");
+    micHint("Voice input is unavailable here. Type below and I’ll help you.");
+    q.focus(); return;
   }
-  stopEverything("visitor_barge_in");
-  turnNumber++;
-  sttBusy = true;
-  micBtn.classList.add("live");
-  setMode("listen");
+  if (epoch !== listeningEpoch) return;
+  let clip;
   try {
-    const text = await SamSTT.record({ maxMs: 6000 });
-    if (text && text.trim()) receive(text.trim());
-    else { setMode("idle"); addLog("sam", "I didn't quite catch that — type it and I'll help just the same."); }
-  } catch {
+    micState(true, "Allow microphone access to speak");
+    clip = SamSTT.record({ maxMs: 15000,
+      onRecording: () => { if (epoch === listeningEpoch) { micPending = false; setMode("listen"); micHint("I’m listening. Tap Done when you’ve finished."); } },
+      onTranscribing: () => { if (epoch === listeningEpoch) { micState(false); setMode("process"); setStatus("Transcribing…"); } },
+    });
+    recording = clip;
+    const text = await clip;
+    if (epoch !== listeningEpoch) return;
+    recording = null; micPending = false; micState(false);
+    if (text.trim()) receive(text.trim());
+    else { setMode("idle"); micHint("I didn’t catch any speech. Try Talk again, or type below."); }
+  } catch (error) {
+    if (epoch !== listeningEpoch) return;
     setMode("idle");
-    addLog("sam", "The mic did not start — type and I'll help just the same.");
+    micHint(error.name === "NotAllowedError" ? "Microphone access is blocked. Allow it in your browser’s site settings, or type below." : "I couldn’t transcribe that. Try Talk again, or type below.");
   } finally {
-    sttBusy = false;
-    micBtn.classList.remove("live");
-    q.focus();
+    if (epoch === listeningEpoch) { recording = null; micPending = false; micState(false); }
   }
 }
-
 const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-if (Rec) {
-  const rec = new Rec();
-  rec.lang = "en-US";
-  rec.interimResults = false;
-  rec.onresult = (e) => receive(e.results[0][0].transcript);
-  rec.onstart = () => { stopEverything("visitor_barge_in"); turnNumber += 1; micBtn.classList.add("live"); setMode("listen"); };
-  rec.onerror = () => { micBtn.classList.remove("live"); setMode("idle"); if (hint) { hint.textContent = "The microphone didn’t start. You can type your message below."; hint.classList.remove("hidden"); } };
-  rec.onend = () => { micBtn.classList.remove("live"); if (mode === "listen") setMode("idle"); };
-  micBtn.addEventListener("click", () => {
-    if (!started) begin(false);
-    try { rec.start(); }
-    catch { sttFallback(); }
-  });
-} else {
-  micBtn.addEventListener("click", () => {
-    if (!started) begin(false);
-    sttFallback();
-  });
-}
+micBtn.setAttribute("aria-pressed", "false");
+micBtn.addEventListener("click", () => {
+  if (recording && mode !== "process") { recording.stop(); return; }
+  if (recording) cancelListening();
+  if (recognition) { try { recognition.stop(); } catch {} return; }
+  if (micPending) { cancelListening(); setMode("idle"); return; }
+  if (!started) begin(false);
+  stopEverything("visitor_barge_in"); turnNumber++;
+  const epoch = listeningEpoch;
+  if (!Rec) { sttFallback(epoch); return; }
+  const rec = new Rec(); recognition = rec; micPending = true;
+  rec.lang = "en-US"; rec.interimResults = false;
+  rec.onstart = () => { if (recognition !== rec || epoch !== listeningEpoch) return; micPending = false; micState(true); setMode("listen"); micHint("I’m listening. Tap Done when you’ve finished."); };
+  rec.onresult = event => {
+    if (recognition !== rec || epoch !== listeningEpoch) return;
+    recognition = null; micPending = false; micState(false);
+    receive(event.results[0][0].transcript);
+  };
+  rec.onerror = event => {
+    if (recognition !== rec || epoch !== listeningEpoch) return;
+    recognition = null; micPending = false; micState(false);
+    if (["network", "service-not-allowed", "language-not-supported"].includes(event.error)) { sttFallback(epoch); return; }
+    setMode("idle");
+    micHint(event.error === "not-allowed" ? "Microphone access is blocked. Allow it in your browser’s site settings, or type below." : "I didn’t catch that. Try Talk again, or type below.");
+  };
+  rec.onend = () => { if (recognition !== rec) return; recognition = null; micPending = false; micState(false); if (mode === "listen") setMode("idle"); };
+  try { rec.start(); } catch { recognition = null; sttFallback(epoch); }
+});
+q.addEventListener("input", () => { if (recognition || recording || micPending) { cancelListening(); setMode("listen"); } });
 
 document.getElementById("bookForm").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -545,7 +583,7 @@ if (depositBtn) depositBtn.addEventListener("click", async () => {
     if (!r.ok || !data.url) throw new Error("checkout");
     window.location.assign(data.url);
   } catch {
-    depositStatus.textContent = "Checkout could not open. Your discovery appointment is still booked.";
+    depositStatus.textContent = lastBooking.confirmed ? "Checkout could not open. Your discovery appointment is still confirmed." : "Checkout could not open. Your discovery request is still saved and awaiting confirmation.";
     depositBtn.disabled = false;
   }
 });

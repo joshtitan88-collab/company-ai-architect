@@ -1,0 +1,147 @@
+[
+  {
+    "type": "function",
+    "function": {
+      "name": "check_availability",
+      "description": "Look up actual available discovery slots. Never invent a time.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "description": "Optional YYYY-MM-DD business-local date"
+          }
+        },
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "request_appointment",
+      "description": "Submit the approved discovery request. Announce confirmed only when the result status is confirmed.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Caller name"
+          },
+          "email": {
+            "type": "string",
+            "description": "Work email"
+          },
+          "company": {
+            "type": "string",
+            "description": "Company name"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Optional callback number"
+          },
+          "pain": {
+            "type": "string",
+            "description": "Business need"
+          },
+          "slotIso": {
+            "type": "string",
+            "description": "Exact ISO slot returned by check_availability"
+          },
+          "timezone": {
+            "type": "string",
+            "description": "IANA timezone"
+          },
+          "confirmedByCaller": {
+            "type": "boolean",
+            "description": "True only after reading the details back and receiving explicit caller approval."
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "company",
+          "slotIso",
+          "timezone",
+          "confirmedByCaller"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "leave_message",
+      "description": "Save an approved message. Do not promise notification or reply deadlines.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Caller name"
+          },
+          "company": {
+            "type": "string",
+            "description": "Company name"
+          },
+          "contact": {
+            "type": "string",
+            "description": "Read-back callback phone or email"
+          },
+          "message": {
+            "type": "string",
+            "description": "Approved message"
+          },
+          "team": {
+            "type": "string",
+            "description": "general, sales, technical, billing or privacy"
+          },
+          "contactKind": {
+            "type": "string",
+            "enum": [
+              "phone",
+              "email"
+            ]
+          },
+          "urgent": {
+            "type": "boolean"
+          },
+          "confirmedByCaller": {
+            "type": "boolean",
+            "description": "True only after reading the details back and receiving explicit caller approval."
+          }
+        },
+        "required": [
+          "name",
+          "contact",
+          "contactKind",
+          "message",
+          "confirmedByCaller"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  {
+    "type": "function",
+    "function": {
+      "name": "company_information",
+      "description": "Retrieve approved company information and fixed prices.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "Company question"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "additionalProperties": false
+      }
+    }
+  }
+]

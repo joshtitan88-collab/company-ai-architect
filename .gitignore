@@ -12,3 +12,7 @@ dist/
 assets/3d/
 sam-3d.bundle.js*
 .local-intake/
+
+.env
+.env.*
+!.env.example

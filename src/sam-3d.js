@@ -49,6 +49,7 @@ async function start() {
   if (ready) return true;
   if (loading) return loading;
   loading = (async () => {
+    let expired = false;
     try {
       head = new TalkingHead(host, {
         lipsyncModules: [], ttsEndpoint: null,
@@ -62,9 +63,14 @@ async function start() {
         lightDirectColor: 0xffe9db, lightSpotColor: 0x77b9ff, lightSpotIntensity: 6,
         avatarMood: 'neutral', update: animate,
       });
-      await head.showAvatar({ url: '/assets/3d/sam.glb', body: 'F', avatarMood: 'neutral' }, e => {
+      let loadTimer;
+      const avatarLoad = head.showAvatar({ url: '/assets/3d/sam.glb', body: 'F', avatarMood: 'neutral' }, e => {
         if (progress && e.lengthComputable) progress.textContent = 'Preparing Sam · ' + Math.round(e.loaded / e.total * 100) + '%';
       });
+      avatarLoad.then(() => { if (expired) head.stop(); }, () => {});
+      try {
+        await Promise.race([avatarLoad, new Promise((_, reject) => { loadTimer = setTimeout(() => reject(new Error('avatar_load_timeout')), 30000); })]);
+      } finally { clearTimeout(loadTimer); }
       ready = true;
       stage.classList.add('avatar-3d-ready');
       host.setAttribute('aria-label', 'Sam, your interactive 3D receptionist');
@@ -75,9 +81,13 @@ async function start() {
       window.dispatchEvent(new CustomEvent('sam3d:ready'));
       return true;
     } catch (error) {
+      expired = true;
+      if (head) head.stop();
       if (progress) progress.textContent = 'Sam is available by voice and text';
       console.warn('SAM 3D unavailable:', error.message);
+      ready = false;
       stage.classList.remove('avatar-3d-ready');
+      window.dispatchEvent(new CustomEvent('sam3d:unavailable'));
       return false;
     }
   })();
@@ -102,5 +112,6 @@ document.addEventListener('visibilitychange', () => {
   if (!head || !ready) return;
   if (document.hidden) head.stop(); else head.start();
 });
+window.addEventListener('pageshow', () => { if (head && ready && !document.hidden) head.start(); });
 window.Sam3D = { start, active: () => ready };
 start();

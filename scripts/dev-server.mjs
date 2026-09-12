@@ -41,19 +41,31 @@ let issueSeq = 0;
 const realFetch = globalThis.fetch;
 if (!process.env.GITHUB_TOKEN) {
   process.env.GITHUB_TOKEN = "local-dev-mock";
+  process.env.INTAKE_REPO = "local/private-intake";
   await mkdir(INTAKE_DIR, { recursive: true });
   const existing = (await readdir(INTAKE_DIR)).filter((f) => f.endsWith(".json"));
   issueSeq = existing.length;
   globalThis.fetch = async (input, init) => {
     const u = String(input);
     if (u.startsWith("https://api.github.com/")) {
+      if (u === "https://api.github.com/repos/local/private-intake") return new Response(JSON.stringify({ private: true }), { status: 200 });
       if (u.includes("/issues?")) {
         const files = (await readdir(INTAKE_DIR)).filter((f) => f.endsWith(".json"));
         const issues = [];
-        for (const f of files) issues.push(JSON.parse(await readFile(path.join(INTAKE_DIR, f), "utf8")));
+        for (const f of files) {
+          const issue = JSON.parse(await readFile(path.join(INTAKE_DIR, f), "utf8"));
+          if (issue.state !== 'closed') issues.push(issue);
+        }
         return new Response(JSON.stringify(issues), { status: 200 });
       }
       const payload = JSON.parse(init.body);
+      if (init.method === 'PATCH') {
+        const number = Number(u.split('/').at(-1));
+        const file = path.join(INTAKE_DIR, `${String(number).padStart(4, '0')}.json`);
+        const issue = { ...JSON.parse(await readFile(file, 'utf8')), ...payload };
+        await writeFile(file, JSON.stringify(issue));
+        return new Response(JSON.stringify(issue));
+      }
       issueSeq += 1;
       const issue = { number: issueSeq, title: payload.title, body: payload.body, labels: payload.labels };
       await writeFile(path.join(INTAKE_DIR, `${String(issueSeq).padStart(4, "0")}.json`), JSON.stringify(issue, null, 2));
@@ -135,19 +147,21 @@ async function sttRoute(req, res) {
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://localhost:${PORT}`);
   try {
-    if (u.pathname === "/api/stt") return await sttRoute(req, res);
+    if (u.pathname === "/api/stt" && STT_PY) return await sttRoute(req, res);
     if (u.pathname.startsWith("/api/")) {
       const name = u.pathname.slice(5).replace(/[^a-z0-9-]/g, "");
       const handler = await apiHandler(name);
       if (!handler) { res.writeHead(404); return res.end('{"error":"no_such_api"}'); }
       let body = "";
-      for await (const chunk of req) body += chunk;
+      for await (const chunk of req) { body += chunk; if (body.length > 1500000) { res.writeHead(413); return res.end(); } }
       const sreq = { method: req.method, body, headers: req.headers, query: Object.fromEntries(u.searchParams) };
       return await handler(sreq, shimRes(res));
     }
-    let p = u.pathname === "/" ? "/receptionist.html" : u.pathname;
-    const file = path.normalize(path.join(ROOT, p));
-    if (!file.startsWith(ROOT) || !existsSync(file)) { res.writeHead(404); return res.end("not found"); }
+    let p = u.pathname === "/" ? "/index.html" : u.pathname;
+    if (p === '/availability.json') { res.writeHead(404); return res.end('not found'); }
+    const staticRoot = existsSync(path.join(ROOT, 'dist/index.html')) ? path.join(ROOT, 'dist') : ROOT;
+    const file = path.resolve(staticRoot, '.' + p);
+    if (!file.startsWith(staticRoot + path.sep) || p.split('/').some(part => part.startsWith('.')) || !existsSync(file)) { res.writeHead(404); return res.end("not found"); }
     const data = await readFile(file);
     res.writeHead(200, { "content-type": MIME[path.extname(file)] || "application/octet-stream" });
     res.end(data);
