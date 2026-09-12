@@ -6,6 +6,7 @@
     "dev": "node scripts/dev-server.mjs"
   },
   "dependencies": {
+    "@daily-co/daily-js": "0.92.2",
     "@met4citizen/talkinghead": "1.7.0",
     "three": "0.180.0"
   },

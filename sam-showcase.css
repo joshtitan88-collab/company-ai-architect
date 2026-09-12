@@ -10,6 +10,10 @@
 .sam-showcase .desk { display: grid; grid-template-columns: 48% 52%; min-height: calc(100dvh - 80px); overflow: visible; max-width: 1680px; margin: auto; }
 .sam-showcase .desk-stage { inset: 0 52% 0 0; overflow: hidden; animation: none !important; background: radial-gradient(ellipse at 55% 32%, #354555 0%, #1b2635 42%, #0b101a 80%); }
 .sam-showcase .desk-vid, .sam-showcase .desk-still { object-position: 50% 25%; }
+.sam-live-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 25%; opacity: 0; pointer-events: none; z-index: 2; transition: opacity .25s ease; }
+.sam-video-ready .sam-live-video { opacity: 1; }
+.sam-video-ready .desk-vid, .sam-video-ready .desk-still { opacity: 0 !important; }
+@media (prefers-reduced-motion: reduce) { .sam-live-video { transition: none; } }
 .sam-showcase .desk-veil { background: linear-gradient(0deg, #0b101a 0%, transparent 45%); animation: none !important; z-index: 3; }
 .sam-3d { position: absolute; inset: 0 0 0; z-index: 2; opacity: 0; transition: opacity .6s; }
 .sam-3d canvas { display: block; width: 100%; height: 100%; }

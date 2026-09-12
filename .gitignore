@@ -16,3 +16,5 @@ sam-3d.bundle.js*
 .env
 .env.*
 !.env.example
+
+sam-video.bundle.js*

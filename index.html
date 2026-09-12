@@ -34,9 +34,10 @@
         <video id="vidProcess" class="desk-vid process" muted loop playsinline preload="auto">
           <source src="./assets/sam-process.mp4" type="video/mp4" />
         </video>
-        <video id="vidTalk" class="desk-vid talk" playsinline preload="auto" poster="./assets/sam-imagine-still.jpg">
+        <video id="vidTalk" class="desk-vid talk" muted playsinline preload="auto" poster="./assets/sam-imagine-still.jpg">
           <source src="./assets/sam-imagine-speak.mp4" type="video/mp4" />
         </video>
+        <video id="samLiveVideo" class="sam-live-video" muted playsinline aria-hidden="true"></video>
         <div class="desk-veil"></div>
       </div>
       <div class="avatar-caption"><span id="avatarProgress">Your AI receptionist</span><h1>Your next great hire.<br><em>Meet Sam.</em></h1><p>An AI front desk with a personal touch.</p></div>
@@ -90,6 +91,7 @@
       </div>
     </section>
   </main>
+  <script src="./sam-video.bundle.js"></script>
   <script src="./sam-voice.js"></script>
   <script src="./sam-knowledge.js"></script>
   <script src="./desk-nlu.js"></script>

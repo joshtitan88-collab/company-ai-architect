@@ -33,6 +33,7 @@
     const detail = event.detail || {};
     if (!detail.audio) return;
     clear();
+    if (detail.source === "video") return;
     generation = detail.generation;
     const video = mouth();
     if (!video || video.dataset.ownAudio === "1" || reducedMotion) return;

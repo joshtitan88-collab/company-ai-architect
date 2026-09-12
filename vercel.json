@@ -31,5 +31,11 @@
   ],
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "npm ci"
+  "installCommand": "npm ci",
+  "functions": {
+    "api/lemonslice-session.js": {
+      "includeFiles": "assets/sam-imagine-still.jpg",
+      "maxDuration": 60
+    }
+  }
 }

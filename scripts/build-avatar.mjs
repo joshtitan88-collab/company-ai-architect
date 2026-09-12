@@ -23,7 +23,9 @@ await build({ entryPoints: ['src/sam-3d.js'], bundle: true, minify: true, format
   } }]
 });
 await cp('dist/sam-3d.bundle.js', 'sam-3d.bundle.js');
+await build({ entryPoints: ['src/sam-video.js'], bundle: true, minify: true, format: 'iife', target: 'es2022', outfile: 'dist/sam-video.bundle.js', legalComments: 'linked' });
+await cp('dist/sam-video.bundle.js', 'sam-video.bundle.js');
 await mkdir('assets/3d', { recursive: true });
 await cp('dist/assets/3d/sam.glb', 'assets/3d/sam.glb');
-await writeFile('dist/release.json', JSON.stringify({ version: 'sam-3d-2026-09-12', commit: process.env.VERCEL_GIT_COMMIT_SHA || 'local' }));
-console.log('Built SAM 3D and public website.');
+await writeFile('dist/release.json', JSON.stringify({ version: 'sam-realistic-video-2026-09-12', commit: process.env.VERCEL_GIT_COMMIT_SHA || 'local' }));
+console.log('Built SAM video integration and public website.');

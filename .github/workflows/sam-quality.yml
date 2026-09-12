@@ -19,6 +19,8 @@ jobs:
       - name: Verify conversation, audio and reception behavior
         run: |
           node scripts/test-sam-voice.mjs
+          node scripts/test-sam-video.mjs
+          node scripts/test-lemonslice-session.mjs
           node scripts/test-sam-conversation.mjs
           node scripts/test-reception-reliability.mjs
           node scripts/test-intake-provision.mjs

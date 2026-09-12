@@ -79,9 +79,11 @@ let turnController = null;
 
 const VIDS = { idle: vidIdle, listen: vidListen, process: vidProcess, talk: vidTalk };
 
-function playVid(el, unmuted) {
+function playVid(el) {
   if (!el || reduceMotion) return;
-  el.muted = !unmuted;
+  el.muted = true;
+  el.defaultMuted = true;
+  el.volume = 0;
   const p = el.play();
   if (p && p.catch) p.catch(() => {});
 }
@@ -124,7 +126,7 @@ function setMode(next) {
     if (el === active) {
       // Fade the incoming layer in while it plays — no hard cut.
       el.classList.add("on");
-      playVid(el, k === "talk" && el === vidTalk && vidTalk.dataset.ownAudio === "1");
+      playVid(el);
     } else {
       // Fade out now; keep it playing until the fade ends so the outgoing
       // frame doesn't freeze mid-blend. Actual pause happens in fadeTimer.
@@ -609,6 +611,14 @@ window.addEventListener("pagehide", () => { stopEverything("pagehide"); turnNumb
 ["vidIdle", "vidTalk", "vidListen", "vidProcess"].forEach((id) => {
   const el = document.getElementById(id);
   if (!el) return;
+  const silenceVideo = () => {
+    if (!el.muted) el.muted = true;
+    if (el.volume !== 0) el.volume = 0;
+    el.defaultMuted = true;
+  };
+  silenceVideo();
+  el.addEventListener("volumechange", silenceVideo);
+  el.addEventListener("play", silenceVideo);
   el.addEventListener("loadeddata", armVideos);
   el.addEventListener("canplay", armVideos);
   el.addEventListener("error", () => {});
