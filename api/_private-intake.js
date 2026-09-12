@@ -1,7 +1,17 @@
 const REPO_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 
-export function intakeRepo() {
-  const repo = String(process.env.INTAKE_REPO || "").trim();
+export const DEFAULT_INTAKE_REPO = "joshtitan88-collab/company-ai-architect-intake";
+export const PRODUCTION_PROJECT_ID = "prj_C22GLMaAGoNt1XPEdvbKbjqV4Lm8";
+
+export function isProductionProject(env = process.env) {
+  return env.VERCEL_ENV === "production" && env.VERCEL_PROJECT_ID === PRODUCTION_PROJECT_ID;
+}
+
+export function intakeRepo(env = process.env) {
+  const configured = String(env.INTAKE_REPO || "").trim();
+  // Only this production project gets the dedicated default. Preview and local
+  // deployments require their own explicit setting and cannot inherit live data.
+  const repo = configured || (isProductionProject(env) ? DEFAULT_INTAKE_REPO : "");
   return REPO_PATTERN.test(repo) ? repo : "";
 }
 
