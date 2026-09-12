@@ -183,10 +183,13 @@ function speak(text, expectedTurn) {
   addLog("sam", text);
   // One Eve audio authority handles every line, including the greeting.
   if (vidTalk && !reduceMotion) {
-    // Generic mouth loop for every non-greeting line — muted, looping.
+    // Keep the original recorded introduction paired with its matching voice.
+    // Other replies use the original Sam's motion loop, never another face.
+    const greeting = text === GREETING;
     vidTalk.dataset.ownAudio = "";
+    vidTalk.dataset.speechClip = greeting ? "greeting" : "reply";
     vidTalk.onended = null;
-    setTalkClip(TALK_CLIP, true);
+    setTalkClip(greeting ? GREETING_CLIP : TALK_CLIP, !greeting);
     vidTalk.muted = true;
   }
   SamVoice.play(text);

@@ -25,11 +25,11 @@ let uuid = 0, failQualify = false, responseFails = true;
 const posts = [];
 const context = vm.createContext({
   document: { getElementById: element, querySelectorAll: () => [], createElement: () => new Element() },
-  window: { matchMedia: () => ({ matches: true }), addEventListener() {}, dispatchEvent() {} },
+  window: { matchMedia: () => ({ matches: false }), addEventListener() {}, dispatchEvent() {} },
   sessionStorage: { getItem() { throw new Error('SecurityError'); }, setItem() { throw new Error('SecurityError'); } },
   localStorage: { getItem() { throw new Error('SecurityError'); }, setItem() { throw new Error('SecurityError'); } },
   crypto: { randomUUID: () => 'test-' + ++uuid },
-  SamNLU: { createSession: () => ({ phase: 'confirming', booking: {} }) },
+  SamNLU: { GREETING: 'Original greeting', createSession: () => ({ phase: 'confirming', booking: {} }) },
   SamMessages: { createSession: () => ({}) },
   SamQualify: { createSession: () => ({}), fields() { if (failQualify) throw new Error('bad draft'); return {}; } },
   SamVoice: { stop() {}, play() {} },
@@ -66,3 +66,12 @@ assert.notEqual(a.idempotencyKey, corrected.idempotencyKey);
 evaluate('messageAttempt = null');
 assert.notEqual(corrected.idempotencyKey, evaluate("messageRequest({contact:'two@example.invalid',message:'First draft'})").idempotencyKey);
 console.log('PASS real desk coordinator: blocked storage, uncertain booking retries, preparation failure recovery, stable message retry keys and corrected drafts');
+evaluate('speak(GREETING)');
+assert.equal(element('vidTalk').src, './assets/sam-imagine-speak.mp4');
+assert.equal(element('vidTalk').loop, false);
+assert.equal(element('vidTalk').dataset.speechClip, 'greeting');
+evaluate("speak('Here is an answer to your question.')");
+assert.equal(element('vidTalk').src, './assets/desk-talk.mp4');
+assert.equal(element('vidTalk').loop, true);
+assert.equal(element('vidTalk').dataset.speechClip, 'reply');
+console.log('PASS original greeting video selection and same-identity reply loop');

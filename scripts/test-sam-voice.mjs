@@ -5,11 +5,12 @@ const voiceCode = await readFile(new URL('../sam-voice.js', import.meta.url), 'u
 const lipCode = await readFile(new URL('../sam-lipsync.js', import.meta.url), 'utf8');
 const flush = async () => { for (let i = 0; i < 15; i++) await Promise.resolve(); };
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
-function setup() {
+function setup({ reducedMotion = false } = {}) {
   const events = [], audios = [], requests = [], urls = [], timers = new Map(), frames = new Map();
   let id = 0, sourceCount = 0, contextCount = 0;
   class CE extends Event { constructor(name, options) { super(name); this.detail = options.detail; } }
   const window = new EventTarget();
+  window.matchMedia = () => ({ matches: reducedMotion });
   const video = { paused: true, dataset: {}, plays: 0, pauses: 0, style: { setProperty() {} }, play() { this.plays++; this.paused = false; return Promise.resolve(); }, pause() { this.pauses++; this.paused = true; } };
   class Audio extends EventTarget {
     constructor(src) { super(); this.src = src; this.paused = true; this.ended = false; this.duration = 2; audios.push(this); }
@@ -155,3 +156,36 @@ function setup() {
   assert.equal(h.timers.size, 0);
 }
 console.log('PASS SamVoice: actual playback start, Eve TTS, no speculative assets, one analyser, moving pauses, cancellation, stale body/events, bounded fetch/start/end.');
+
+{
+  const h = setup();
+  h.video.dataset.speechClip = 'greeting';
+  h.video.currentTime = 7;
+  const greeting = h.voice.play(h.voice.GREETING);
+  h.audios[0].currentTime = 0;
+  assert.equal(h.video.currentTime, 7, 'loading cannot start or seek the visible greeting');
+  h.audios[0].playing();
+  assert.equal(h.video.currentTime, .079, 'repeated greeting starts with measured audio offset');
+  assert.equal(h.video.muted, true, 'video must never become a second voice');
+  h.audios[0].currentTime = 3;
+  h.video.currentTime = 1;
+  h.audios[0].dispatchEvent(new Event('timeupdate'));
+  assert.equal(h.video.currentTime, 3.079, 'greeting follows actual audio after delayed video playback');
+  h.voice.stop('interrupt');
+  assert.equal((await greeting).status, 'cancelled');
+  h.video.dataset.speechClip = 'reply';
+  h.video.currentTime = 5;
+  h.audios[0].currentTime = 8;
+  h.audios[0].dispatchEvent(new Event('timeupdate'));
+  assert.equal(h.video.currentTime, 5, 'interrupted greeting cannot seek a later reply');
+}
+{
+  const h = setup({ reducedMotion: true });
+  h.video.dataset.speechClip = 'greeting';
+  const greeting = h.voice.play(h.voice.GREETING);
+  h.audios[0].playing();
+  assert.equal(h.video.plays, 0, 'reduced-motion presentation never starts a video');
+  h.audios[0].end();
+  assert.equal((await greeting).status, 'ended', 'voice remains available with reduced motion');
+}
+console.log('PASS original greeting alignment, muted video, interrupted sync cleanup and reduced motion');
