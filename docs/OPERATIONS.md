@@ -2,6 +2,12 @@
 
 The public website is `company-ai-architect`. A successful deployment does not establish that booking, microphone hardware, rendered 3D, or a telephone number works.
 
+## Public access comes first
+
+On September 12, the production domain began returning a Vercel Authentication redirect even though its deployment was READY. Before client demonstrations, run `node scripts/check-live.mjs`. This read-only check stops on login redirects and verifies the homepage, release, availability, avatar route and transcription configuration. It never creates an appointment or message.
+
+For this public showcase, use Vercel project **Settings → Deployment Protection → Vercel Authentication → Standard Protection**, which protects previews while allowing production domains. See the [official protection scopes](https://vercel.com/docs/deployment-protection). A connector that reads deployments does not necessarily have permission to change this setting. Do not treat an authenticated preview or a share link as proof the public website works.
+
 ## Booking and messages
 
 An earlier September 12 deployment showed `intake_not_configured`. The later production update provisions a dedicated private repository and uses it only for this exact production project. Live availability returned 200 with 240 openings after that update. Preview/local environments still require explicit configuration. Keep these isolation and private-intake checks enabled.
@@ -44,7 +50,7 @@ Browsers with native speech recognition use it first. Browser-service failures o
 5. Select and verify the telephone voice against Eve before connecting a business number. This repository does not assume that Vapi exposes xAI Eve natively. Provider and voice choice remain an activation requirement.
 6. Connect an authorized telephone number only after inbound call tests pass. No outbound calling or SMS is implemented here.
 
-The adapter returns at most eight slots at a time, with an optional business-local date filter. Booking reuses website validation and idempotency. Message submissions should not be automatically retried on unknown outcomes: the current GitHub message store has no atomic distributed idempotency guarantee. In general, GitHub-backed intake has no atomic reservation lock without the configured calendar; same-slot calendar inserts use stable Google event IDs. These limits require review before high-volume service.
+The adapter returns at most eight slots at a time, with an optional business-local date filter and explicit request/confirmation mode. Booking reuses website validation and idempotency. Messages with an idempotency key check existing private records before creating a new one, including closed messages; retries must preserve both key and payload. The website retains the key across uncertain outcomes and changes it for corrected drafts. This reduces response-loss duplicates but is not an atomic distributed lock. In general, GitHub-backed intake has no atomic reservation lock without the configured calendar; same-slot calendar inserts use stable Google event IDs. These limits require review before high-volume service.
 
 ## Acceptance gates
 
@@ -64,8 +70,12 @@ node scripts/test-sam-voice.mjs
 node scripts/test-sam-conversation.mjs
 node scripts/test-reception-reliability.mjs
 node scripts/test-speech-and-phone.mjs
+node scripts/test-message-corrections.mjs
+node scripts/test-desk-submission.mjs
+node scripts/test-sam-3d.mjs
 npm run build
 node scripts/test-release-layout.mjs
+node scripts/check-live.mjs
 ```
 
 These automated checks use mocked providers unless an explicit live test is performed. They do not certify phone service, production credentials, audible voice quality, or microphone hardware.

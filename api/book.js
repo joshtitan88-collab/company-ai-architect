@@ -228,12 +228,15 @@ export default async function handler(req, res) {
   } catch (err) {
     if (err?.message === "slot_taken") {
       // A concurrent request won the calendar insert. Release our intake hold.
-      try { await gh(token, `/repos/${intakeRepo}/issues/${data.number}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: "closed", state_reason: "not_planned" }) }); }
+      try {
+        const cleanup = await gh(token, `/repos/${intakeRepo}/issues/${data.number}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ state: "closed", state_reason: "not_planned" }) });
+        if (!cleanup.ok) console.log(JSON.stringify({ evt: "book_conflict_cleanup_failed", id: data.number }));
+      }
       catch { console.log(JSON.stringify({ evt: "book_conflict_cleanup_failed", id: data.number })); }
       return res.status(409).json({ error: "slot_taken" });
     }
     calendar = { ok: false, error: "calendar_failed" };
-    console.log(JSON.stringify({ evt: "book_calendar", id: data.number, ok: false, error: String(err && err.message || err) }));
+    console.log(JSON.stringify({ evt: "book_calendar", id: data.number, ok: false, error: "calendar_failed" }));
   }
 
   const status = calendar.ok ? "confirmed" : "requested";

@@ -116,11 +116,12 @@ function userPrompt(text, state) {
   return `Dialogue state: ${JSON.stringify(state || {})}\nCaller said: ${JSON.stringify(String(text || "").slice(0, 600))}`;
 }
 
-async function tryOllama(text, state) {
+async function tryOllama(text, state, signal) {
   if (!ollamaAllowed()) return null;
   const model = process.env.SAM_NLU_MODEL || "qwen2.5:7b-instruct";
   const r = await fetch(`${ollamaBase()}/api/chat`, {
     method: "POST",
+    signal,
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       model,
@@ -138,10 +139,11 @@ async function tryOllama(text, state) {
   return parseJson(data && data.message && data.message.content);
 }
 
-async function tryOpenAiCompat(base, key, model, text, state) {
+async function tryOpenAiCompat(base, key, model, text, state, signal) {
   if (!key) return null;
   const r = await fetch(`${base}/chat/completions`, {
     method: "POST",
+    signal,
     headers: { "content-type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({
       model,
@@ -158,11 +160,12 @@ async function tryOpenAiCompat(base, key, model, text, state) {
   return parseJson(data && data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content);
 }
 
-async function tryAnthropic(text, state) {
+async function tryAnthropic(text, state, signal) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return null;
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
+    signal,
     headers: {
       "content-type": "application/json",
       "x-api-key": key,
@@ -190,14 +193,18 @@ export default async function handler(req, res) {
   const state = body.state && typeof body.state === "object" ? body.state : {};
   if (!text) return res.status(400).json({ ok: false, error: "missing_text" });
 
+  // One shared provider deadline keeps the client fallback responsive even
+  // when the first configured provider stalls. No raw provider errors escape.
+  const signal = AbortSignal.timeout(8000);
   const attempts = [
-    () => tryOllama(text, state),
-    () => tryOpenAiCompat("https://api.x.ai/v1", process.env.XAI_API_KEY, process.env.SAM_NLU_MODEL_XAI || "grok-3-mini", text, state),
-    () => tryOpenAiCompat("https://api.openai.com/v1", process.env.OPENAI_API_KEY, process.env.SAM_NLU_MODEL_OPENAI || "gpt-4o-mini", text, state),
-    () => tryAnthropic(text, state),
+    () => tryOllama(text, state, signal),
+    () => tryOpenAiCompat("https://api.x.ai/v1", process.env.XAI_API_KEY, process.env.SAM_NLU_MODEL_XAI || "grok-3-mini", text, state, signal),
+    () => tryOpenAiCompat("https://api.openai.com/v1", process.env.OPENAI_API_KEY, process.env.SAM_NLU_MODEL_OPENAI || "gpt-4o-mini", text, state, signal),
+    () => tryAnthropic(text, state, signal),
   ];
 
   for (const attempt of attempts) {
+    if (signal.aborted) break;
     try {
       const parsed = sanitize(await attempt(), text);
       if (parsed) return res.status(200).json(parsed);

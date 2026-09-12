@@ -288,29 +288,39 @@ function openBook() {
   document.getElementById("slotLabel").textContent = when;
 }
 
-function idemKey() {
-  let idem = sessionStorage.getItem("caa_idem");
-  if (!idem) {
-    idem = (crypto.randomUUID && crypto.randomUUID()) || String(Date.now());
-    sessionStorage.setItem("caa_idem", idem);
-  }
-  return idem + (selected ? ":" + selected.iso : "");
+const memoryIds = new Map();
+function newRequestId() {
+  return typeof crypto !== "undefined" && crypto.randomUUID
+    ? crypto.randomUUID() : Date.now().toString(36) + "-" + Math.random().toString(36).slice(2);
 }
-function sessionId() {
-  if (!sessionStorage.getItem("caa_sid")) {
-    sessionStorage.setItem("caa_sid", "sam_chat_" + ((crypto.randomUUID && crypto.randomUUID()) || Date.now()));
+function stableId(key) {
+  if (memoryIds.has(key)) return memoryIds.get(key);
+  let id;
+  try { id = sessionStorage.getItem(key); } catch {}
+  if (!id) id = newRequestId();
+  memoryIds.set(key, id);
+  try { sessionStorage.setItem(key, id); } catch {}
+  return id;
+}
+function idemKey(slotIso) { return stableId("caa_idem") + ":" + slotIso; }
+function sessionId() { return "sam_chat_" + stableId("caa_sid"); }
+let messageAttempt = null;
+function messageRequest(payload) {
+  const fingerprint = JSON.stringify(payload);
+  if (!messageAttempt || messageAttempt.fingerprint !== fingerprint) {
+    messageAttempt = { fingerprint, key: newRequestId() };
   }
-  return sessionStorage.getItem("caa_sid");
+  return { ...payload, idempotencyKey: messageAttempt.key };
 }
 
 async function postBook(payload) {
   if (bookingBusy) return false;
   bookingBusy = true;
   const bookingTurn = turnNumber;
-  const body = { ...payload, ...SamQualify.fields(qual),
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
-    idempotencyKey: idemKey(), sessionId: sessionId() };
   try {
+    const body = { ...payload, ...SamQualify.fields(qual),
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York",
+      idempotencyKey: idemKey(payload.slotIso), sessionId: sessionId() };
     const r = await fetch("/api/book", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(45000) });
     const data = await r.json().catch(() => ({}));
     if (r.status === 409) {
@@ -386,7 +396,7 @@ async function handle(text, myTurn, signal) {
   if (SamMessages.active(msgSession) || SamMessages.wants(text)) {
     if (messageBusy) { speak("Your message is being submitted. I will show the result here.", myTurn); return; }
     const nextMessageSession = cloneState(msgSession);
-    const turn = await SamMessages.turnSmart(nextMessageSession, text);
+    const turn = await SamMessages.turnSmart(nextMessageSession, text, { signal });
     if (myTurn !== turnNumber || (signal && signal.aborted)) return;
     msgSession = nextMessageSession;
     speak(turn.reply, myTurn);
@@ -394,9 +404,10 @@ async function handle(text, myTurn, signal) {
     if (turn.action === "submit_message") {
       messageBusy = true;
       try {
-        const r = await fetch("/api/message", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(turn.payload), signal: AbortSignal.timeout(20000) });
+        const r = await fetch("/api/message", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(messageRequest(turn.payload)), signal: AbortSignal.timeout(30000) });
         const data = await r.json().catch(() => ({}));
         const ok = !!(r.ok && data.ok && data.id);
+        if (ok) messageAttempt = null;
         SamMessages.markSubmitted(msgSession, ok);
         const line = ok ? SamMessages.LINES.sent_short : SamMessages.LINES.send_failed;
         if (myTurn === turnNumber) speak(line, myTurn); else addLog("sam", line);
