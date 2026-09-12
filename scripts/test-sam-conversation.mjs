@@ -102,7 +102,7 @@ assert.equal(s.phase, 'idle');
 assert.equal(t.action, 'none');
 console.log('PASS switching from booking into demos or browsing cannot reopen stale intake');
 
-for (const [slotsStatus, expected] of [['loading', /checking the latest/i], ['error', /can’t check availability/i]]) {
+for (const [slotsStatus, expected] of [['loading', /checking the latest/i], ['error', /can['’]t check availability/i]]) {
   s = Sam.createSession(); Sam.greetingTurn(s);
   t = await Sam.turn(s, 'I want to book a free discovery call', { ...offline, slots: [], slotsStatus });
   assert.equal(t.action, 'show_calendar');
