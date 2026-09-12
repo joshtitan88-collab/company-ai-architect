@@ -22,10 +22,8 @@
     <div class="nav-actions"><a href="./privacy.html">Privacy</a><button type="button" data-prompt="I would like to book a free discovery call.">Book a discovery</button></div>
   </nav>
   <main>
-    <section class="desk" id="desk">
+    <section class="desk" id="desk" data-avatar="sam-realistic">
       <div class="desk-stage" aria-hidden="true">
-        <div id="sam3d" class="sam-3d"></div>
-        <div id="liveAvatar" class="live-avatar"></div>
         <img class="desk-still idle" src="./assets/desk.jpg" alt="" />
         <video id="vidIdle" class="desk-vid idle" muted loop playsinline preload="auto" poster="./assets/desk.jpg">
           <source src="./assets/desk-idle.mp4" type="video/mp4" />
@@ -41,7 +39,7 @@
         </video>
         <div class="desk-veil"></div>
       </div>
-      <div class="avatar-caption"><span id="avatarProgress">Preparing Sam</span><h1>Your next great hire.<br><em>Meet Sam.</em></h1><p>An AI front desk with a personal touch.</p></div>
+      <div class="avatar-caption"><span id="avatarProgress">Your AI receptionist</span><h1>Your next great hire.<br><em>Meet Sam.</em></h1><p>An AI front desk with a personal touch.</p></div>
       <div class="conversation-panel">
       <div class="desk-ui">
         <div class="conversation-heading"><p class="kicker">SAM / YOUR AI CONCIERGE</p><span class="state" id="state" role="status" aria-live="polite">Ready when you are</span></div>
@@ -99,7 +97,6 @@
   <script src="./desk-qualify.js"></script>
   <script src="./sam-stt.js"></script>
   <script src="./sam-lipsync.js"></script>
-  <script type="module" src="./sam-3d.bundle.js"></script>
   <script src="./desk.js"></script>
 </body>
 </html>
