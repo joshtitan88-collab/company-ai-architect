@@ -82,7 +82,10 @@ try {
     assert.equal((await call(book, payload)).code, 503);
   });
   await check('uncalendarized intake is honestly a request', async () => {
-    mockIntake(); const r = await call(book, payload);
+    mockIntake();
+    const availability = await call(slots, {}, 'GET');
+    assert.equal(availability.code, 200); assert.equal(availability.out.bookingMode, 'request');
+    const r = await call(book, payload);
     assert.equal(r.code, 200); assert.equal(r.out.status, 'requested'); assert.equal(r.out.calendar.added, false); assert.equal(r.out.confirmationEmail.sent, false);
   });
   await check('another visitor cannot use an idempotency key to claim a booking', async () => {

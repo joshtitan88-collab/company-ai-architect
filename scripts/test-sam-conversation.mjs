@@ -101,3 +101,12 @@ t = await Sam.turn(s, 'I am just browsing.', offline);
 assert.equal(s.phase, 'idle');
 assert.equal(t.action, 'none');
 console.log('PASS switching from booking into demos or browsing cannot reopen stale intake');
+
+for (const [slotsStatus, expected] of [['loading', /checking the latest/i], ['error', /can['’]t check availability/i]]) {
+  s = Sam.createSession(); Sam.greetingTurn(s);
+  t = await Sam.turn(s, 'I want to book a free discovery call', { ...offline, slots: [], slotsStatus });
+  assert.equal(t.action, 'show_calendar');
+  assert.match(t.reply, expected);
+  assert.doesNotMatch(t.reply, /don't have confirmed openings/);
+}
+console.log('PASS pending and unavailable calendars cannot be described as having no openings');

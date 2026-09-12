@@ -507,7 +507,7 @@
     return " Next openings: " + list.map((s) => fmtSlot(s)).join("; ") + ".";
   }
 
-  function localReply(session, intent, slots) {
+  function localReply(session, intent, slots, availabilityStatus) {
     switch (intent) {
       case "greet":
         return {
@@ -539,7 +539,11 @@
         return { reply: LINES.bye, action: "none" };
       case "book":
         return {
-          reply: (slots && slots.length ? LINES.schedule : LINES.schedule_none) + openingsLine(slots),
+          reply: availabilityStatus === "loading"
+            ? "I’m checking the latest discovery times for you. Choose a time once the calendar appears."
+            : availabilityStatus === "error"
+              ? "I can’t check availability right now. You can retry the calendar or leave a message with your preferred time."
+              : (slots && slots.length ? LINES.schedule : LINES.schedule_none) + openingsLine(slots),
           action: "show_calendar",
         };
       default:
@@ -632,6 +636,7 @@
     const text = normalize(userText);
     if (!session) session = createSession();
     const slots = (opts && opts.slots) || [];
+    const availabilityStatus = opts && opts.slotsStatus;
     if (!text) {
       return result(session, "none", session.greeted ? LINES.none : GREETING, "none");
     }
@@ -749,7 +754,7 @@
 
     if (intent === "confirm" && (session.lastIntent === "book" || session.lastAction === "show_calendar")) {
       session.phase = "awaiting_slot";
-      const built = localReply(session, "book", slots);
+      const built = localReply(session, "book", slots, availabilityStatus);
       remember(session, built.reply);
       return result(session, "book", built.reply, built.action, { source: "rules" });
     }
@@ -761,7 +766,7 @@
     }
 
     if (explicitBooking) {
-      const next = session.booking.slotIso ? askNext(session) : localReply(session, "book", slots);
+      const next = session.booking.slotIso ? askNext(session) : localReply(session, "book", slots, availabilityStatus);
       if (!session.booking.slotIso) session.phase = "awaiting_slot";
       remember(session, next.reply);
       return result(session, "book", next.reply, next.action, { source: "rules" });
@@ -780,7 +785,7 @@
         let action = llm.action || "none";
         let reply = sanitize(llm.reply || "");
         if (!reply) {
-          const built = localReply(session, intent, slots);
+          const built = localReply(session, intent, slots, availabilityStatus);
           reply = built.reply;
           action = built.action;
           source = "rules";
@@ -802,7 +807,7 @@
     }
 
     if (intent === "unknown" || intent === "provide_contact") intent = "none";
-    const built = (!transactional && grounded) || localReply(session, intent === "none" ? "none" : intent, slots);
+    const built = (!transactional && grounded) || localReply(session, intent === "none" ? "none" : intent, slots, availabilityStatus);
     if (grounded && !transactional) { intent = grounded.intent; source = grounded.source; }
     if (intent === "book") {
       session.phase = "awaiting_slot";

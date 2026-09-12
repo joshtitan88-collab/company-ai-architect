@@ -12,6 +12,6 @@
   "devDependencies": {
     "esbuild": "0.25.10",
     "meshoptimizer": "0.24.0",
-    "sharp": "0.34.5"
+    "sharp": "0.35.4"
   }
 }
