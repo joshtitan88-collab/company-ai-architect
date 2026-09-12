@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { verifyPrivateIntake } from "./private-intake.js";
-import { getGoogleBusy, googleCalendarConfigured } from "./google-calendar.js";
-import { listBookings, bookingRange } from "./booking-store.js";
+import { verifyPrivateIntake } from "./_private-intake.js";
+import { getGoogleBusy, googleCalendarConfigured } from "./_google-calendar.js";
+import { listBookings, bookingRange } from "./_booking-store.js";
 
 export function loadAvailability() {
   return JSON.parse(readFileSync(join(process.cwd(), "availability.json"), "utf8"));

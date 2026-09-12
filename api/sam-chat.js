@@ -9,7 +9,7 @@
  */
 import "../sam-knowledge.js";
 const KNOWLEDGE = globalThis.SamKnowledge;
-import { SYSTEM } from "./company-system.js";
+import { SYSTEM } from "./_company-system.js";
 
 function cors(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");

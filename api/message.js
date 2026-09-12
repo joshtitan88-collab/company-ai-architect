@@ -13,7 +13,7 @@
  *                    Values land in the issue body as "owner:" so the intake
  *                    workflow (or a human) knows who the message is for.
  */
-import { verifyPrivateIntake } from "./private-intake.js";
+import { verifyPrivateIntake } from "./_private-intake.js";
 
 const rateBuckets = new Map();
 function rateLimited(req) {

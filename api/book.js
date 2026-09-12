@@ -13,10 +13,10 @@
  *   fallback line instead of dead-ending.
  * - Observability: one structured log line per attempt and per outcome.
  */
-import { sendBookingConfirmation } from "./notify.js";
-import { verifyPrivateIntake } from "./private-intake.js";
-import { createGoogleBooking, getGoogleBusy, googleCalendarConfigured } from "./google-calendar.js";
-import { listBookings, bookingField, bookingRange } from "./booking-store.js";
+import { sendBookingConfirmation } from "./_notify.js";
+import { verifyPrivateIntake } from "./_private-intake.js";
+import { createGoogleBooking, getGoogleBusy, googleCalendarConfigured } from "./_google-calendar.js";
+import { listBookings, bookingField, bookingRange } from "./_booking-store.js";
 import { loadAvailability, openSlots, overlaps } from "./slots.js";
 
 // Per-IP rate limiter: max 5 booking POSTs per rolling minute.
