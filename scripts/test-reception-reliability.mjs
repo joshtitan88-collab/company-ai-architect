@@ -36,6 +36,42 @@ try {
     assert.equal((await call(slots, {}, 'GET')).code, 503);
     assert.equal((await call(book, payload)).code, 503);
   });
+
+  await check('availability diagnostics identify configuration without exposing values', async () => {
+    const originalError = console.error; const logs = [];
+    console.error = (...args) => logs.push(args);
+    try {
+      delete process.env.GITHUB_TOKEN;
+      const r = await call(slots, {}, 'GET');
+      assert.equal(r.code, 503);
+      assert.deepEqual(r.out, { error: 'availability_unavailable' });
+      assert.equal(logs.length, 1);
+      assert.equal(logs[0][0], '[sam.availability]');
+      assert.deepEqual(JSON.parse(logs[0][1]), {
+        stage: 'verify_private_intake', code: 'intake_not_configured',
+        githubTokenPresent: false, intakeRepoPresent: true,
+      });
+      assert(!JSON.stringify(logs).includes('example/private'));
+    } finally { process.env.GITHUB_TOKEN = 'test-token'; console.error = originalError; }
+  });
+  await check('availability diagnostics redact unexpected provider exception details', async () => {
+    const originalError = console.error; const logs = [];
+    console.error = (...args) => logs.push(args);
+    try {
+      global.fetch = async (url) => {
+        if (String(url).endsWith('/repos/example/private')) return response({ private: true });
+        throw Error('Bearer test-secret customer@example.com');
+      };
+      const r = await call(slots, {}, 'GET');
+      assert.equal(r.code, 503);
+      assert.deepEqual(r.out, { error: 'availability_unavailable' });
+      const diagnostic = JSON.parse(logs[0][1]);
+      assert.equal(diagnostic.stage, 'read_bookings');
+      assert.equal(diagnostic.code, 'unexpected_failure');
+      assert(!JSON.stringify(logs).includes('test-secret'));
+      assert(!JSON.stringify(logs).includes('customer@example.com'));
+    } finally { console.error = originalError; }
+  });
   await check('public repository blocks all intake', async () => {
     global.fetch = async () => response({ private: false });
     assert.equal((await call(book, payload)).code, 503);
