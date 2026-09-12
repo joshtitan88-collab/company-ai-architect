@@ -21,6 +21,7 @@ jobs:
           node scripts/test-sam-voice.mjs
           node scripts/test-sam-conversation.mjs
           node scripts/test-reception-reliability.mjs
+          node scripts/test-intake-provision.mjs
       - name: Build production website and verify pinned avatar
         run: npm run build
       - name: Verify public assets and API entrypoints
