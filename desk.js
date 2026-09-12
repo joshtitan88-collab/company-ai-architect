@@ -79,9 +79,11 @@ let turnController = null;
 
 const VIDS = { idle: vidIdle, listen: vidListen, process: vidProcess, talk: vidTalk };
 
-function playVid(el, unmuted) {
+function playVid(el) {
   if (!el || reduceMotion) return;
-  el.muted = !unmuted;
+  el.muted = true;
+  el.defaultMuted = true;
+  el.volume = 0;
   const p = el.play();
   if (p && p.catch) p.catch(() => {});
 }
@@ -124,7 +126,7 @@ function setMode(next) {
     if (el === active) {
       // Fade the incoming layer in while it plays — no hard cut.
       el.classList.add("on");
-      playVid(el, k === "talk" && el === vidTalk && vidTalk.dataset.ownAudio === "1");
+      playVid(el);
     } else {
       // Fade out now; keep it playing until the fade ends so the outgoing
       // frame doesn't freeze mid-blend. Actual pause happens in fadeTimer.
@@ -183,10 +185,13 @@ function speak(text, expectedTurn) {
   addLog("sam", text);
   // One Eve audio authority handles every line, including the greeting.
   if (vidTalk && !reduceMotion) {
-    // Generic mouth loop for every non-greeting line — muted, looping.
+    // Keep the original recorded introduction paired with its matching voice.
+    // Other replies use the original Sam's motion loop, never another face.
+    const greeting = text === GREETING;
     vidTalk.dataset.ownAudio = "";
+    vidTalk.dataset.speechClip = greeting ? "greeting" : "reply";
     vidTalk.onended = null;
-    setTalkClip(TALK_CLIP, true);
+    setTalkClip(greeting ? GREETING_CLIP : TALK_CLIP, !greeting);
     vidTalk.muted = true;
   }
   SamVoice.play(text);
@@ -606,6 +611,14 @@ window.addEventListener("pagehide", () => { stopEverything("pagehide"); turnNumb
 ["vidIdle", "vidTalk", "vidListen", "vidProcess"].forEach((id) => {
   const el = document.getElementById(id);
   if (!el) return;
+  const silenceVideo = () => {
+    if (!el.muted) el.muted = true;
+    if (el.volume !== 0) el.volume = 0;
+    el.defaultMuted = true;
+  };
+  silenceVideo();
+  el.addEventListener("volumechange", silenceVideo);
+  el.addEventListener("play", silenceVideo);
   el.addEventListener("loadeddata", armVideos);
   el.addEventListener("canplay", armVideos);
   el.addEventListener("error", () => {});

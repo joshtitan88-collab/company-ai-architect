@@ -7,6 +7,11 @@
  */
 (function (root) {
   "use strict";
+  // Re-evaluating a script must not leave a second, unreachable audio owner.
+  if (root.SamVoice && typeof root.SamVoice.stop === "function") {
+    if (typeof module !== "undefined" && module.exports) module.exports = root.SamVoice;
+    return;
+  }
   const GREETING = "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?";
   // Verified against assets/voice/manifest.json. Never guess an asset filename.
   const CANNED = { hello: "./assets/sam-hello-v2.mp3" };
@@ -18,6 +23,25 @@
   let active = null;
   let generation = 0;
   let audioContext = null;
+  const ownerId = root.crypto?.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2);
+  let voiceChannel = null, latestClaim = { clock: 0, owner: "" };
+  try {
+    if (root.BroadcastChannel) {
+      voiceChannel = new root.BroadcastChannel("company-ai-architect-sam-voice");
+      voiceChannel.onmessage = function (event) {
+        const claim = event.data;
+        if (!claim || claim.type !== "claim" || !Number.isFinite(claim.clock) || typeof claim.owner !== "string") return;
+        if (claim.clock > latestClaim.clock || (claim.clock === latestClaim.clock && claim.owner > latestClaim.owner)) {
+          latestClaim = claim;
+          if (claim.owner !== ownerId) stop("another_tab");
+        }
+      };
+    }
+  } catch (_e) {}
+  function claimVoice() {
+    latestClaim = { type: "claim", clock: Math.max(Date.now(), latestClaim.clock + 1), owner: ownerId };
+    try { voiceChannel?.postMessage(latestClaim); } catch (_e) {}
+  }
 
   function emit(name, session, extra) {
     if (!root.dispatchEvent) return;
@@ -75,6 +99,7 @@
 
   // Resume in the initiating gesture; do not route audio through a suspended graph.
   function prepareContext() {
+    try { root.SamVideo?.prepare?.(); } catch (_e) {}
     const AC = root.AudioContext || root.webkitAudioContext;
     if (!AC) return;
     try {
@@ -127,6 +152,10 @@
     const s = active;
     active = null;
     generation += 1;
+    // The live renderer must silence its media synchronously before local audio
+    // can acquire ownership, including another-tab and hidden-page interrupts.
+    try { root.SamVideo?.stop(reason || "stopped"); } catch (_e) {}
+    try { root.speechSynthesis?.cancel(); } catch (_e) {}
     if (s) {
       s.cancelled = true;
       if (s.controller) s.controller.abort();
@@ -137,7 +166,37 @@
     emit("cancel", s, { reason: reason || "stopped" });
   }
 
-  function playUrl(s, url, origin) {
+  async function playUrl(s, url, origin) {
+    if (root.SamVideo) {
+      const enabled = await bounded(s, () => root.SamVideo.enabled(), 2500, "video_config_timeout").catch(error => {
+        check(s);
+        return false;
+      });
+      check(s);
+      if (enabled) {
+        let remoteStarted = false;
+        try {
+          await bounded(s, () => root.SamVideo.play(url, {
+            onStart(detail) {
+              check(s);
+              remoteStarted = true;
+              emit("start", s, { audio: detail.audio, source: "video" });
+            },
+          }), END_TIMEOUT, "video_end_timeout", () => root.SamVideo.stop("timeout"));
+          return;
+        } catch (error) {
+          check(s);
+          root.SamVideo.stop("fallback");
+          // Never replay a sentence that has already begun through the avatar.
+          if (remoteStarted) error.playbackStarted = true;
+          if (error.playbackStarted || error.message === "audio_gesture_required") throw error;
+        }
+      }
+    }
+    return playLocalUrl(s, url, origin);
+  }
+
+  function playLocalUrl(s, url, origin) {
     check(s);
     return new Promise(function (resolve, reject) {
       const audio = new Audio(url);
@@ -152,6 +211,9 @@
         audio.removeEventListener("ended", ended);
         audio.removeEventListener("error", failed);
         stopMeter();
+        // Silence first: a late play() completion cannot resurrect audible media.
+        audio.muted = true;
+        audio.volume = 0;
         try { audio.pause(); audio.removeAttribute("src"); audio.load(); } catch (_e) {}
         if (s.audio === audio) s.audio = null;
         if (s.cleanupAudio === cleanup) s.cleanupAudio = null;
@@ -214,6 +276,7 @@
     const t = String(text || "").trim();
     if (!t) return { status: "empty" };
     stop("superseded");
+    claimVoice();
     const s = { id: generation, text: t, cancelled: false, waiters: new Set(), audio: null, controller: null };
     active = s;
     prepareContext();
@@ -264,5 +327,9 @@
   }
   const api = { GREETING: GREETING, slug: slug, play: play, stop: stop, canned: CANNED };
   root.SamVoice = api;
+  root.addEventListener?.("pagehide", function () { stop("pagehide"); });
+  if (typeof document !== "undefined") document.addEventListener?.("visibilitychange", function () {
+    if (document.hidden) stop("hidden_tab");
+  });
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof window !== "undefined" ? window : globalThis);
