@@ -14,6 +14,32 @@
  *                    workflow (or a human) knows who the message is for.
  */
 import { verifyPrivateIntake } from "./_private-intake.js";
+import { createHash } from "node:crypto";
+
+// Retry deduplication follows the private booking store's read-before-write
+// convention. It handles uncertain responses, but is not a distributed lock.
+async function priorMessage(token, repo, key, hash) {
+  const deadline = Date.now() + 10000;
+  for (let page = 1; page <= 100; page++) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) throw new Error("intake_unavailable");
+    const response = await fetch(`https://api.github.com/repos/${repo}/issues?labels=desk-message&state=all&per_page=100&page=${page}`, {
+      signal: AbortSignal.timeout(Math.min(8000, remaining)),
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+    });
+    if (!response.ok) throw new Error("intake_unavailable");
+    const records = await response.json();
+    if (!Array.isArray(records)) throw new Error("intake_unavailable");
+    for (const issue of records) {
+      if (issue.pull_request) continue;
+      const metadata = String(issue.body || "").split(/\r?\n## Message(?:\r?\n|$)/)[0];
+      const field = name => metadata.match(new RegExp(`^- ${name}: (.*)$`, "m"))?.[1]?.trim();
+      if (field("idem") === key) return { id: issue.number, match: field("payload_sha256") === hash, team: field("team") };
+    }
+    if (records.length < 100) return null;
+  }
+  throw new Error("intake_unavailable");
+}
 
 const rateBuckets = new Map();
 function rateLimited(req) {
@@ -78,11 +104,13 @@ export default async function handler(req, res) {
   const contactKind = body.contactKind === "phone" ? "phone" : "email";
   const message = String(body.message || "").trim().slice(0, 2000);
   const urgent = body.urgent === true;
+  const idem = String(body.idempotencyKey || "").trim();
+  if (idem && !/^[A-Za-z0-9_.:-]{1,80}$/.test(idem)) return res.status(400).json({ error: "bad_idempotency_key" });
 
   const contactOk =
     contactKind === "email"
       ? /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(contact)
-      : /^\+?[\d\s().-]{8,20}$/.test(contact);
+      : /^\+?[\d\s().-]{8,20}$/.test(contact) && contact.replace(/\D/g, "").length >= 8;
   if (!name || !message || !contactOk) {
     return res.status(400).json({ error: "missing_fields" });
   }
@@ -105,6 +133,16 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: intake.error });
   }
 
+  const hash = createHash("sha256").update(JSON.stringify({ name, company, contact, contactKind, message, team, urgent })).digest("hex");
+  if (idem) {
+    try {
+      const previous = await priorMessage(token, intake.repo, idem, hash);
+      if (previous) return previous.match
+        ? res.status(200).json({ ok: true, id: previous.id, team: previous.team || team, duplicate: true })
+        : res.status(409).json({ error: "idempotency_conflict" });
+    } catch { return res.status(503).json({ error: "intake_unavailable" }); }
+  }
+
   const title = `desk-message ${team}${urgent ? " URGENT" : ""} from ${name}`.slice(0, 180);
   const md = [
     "Automated desk message from companyaiarchitect.com",
@@ -115,6 +153,7 @@ export default async function handler(req, res) {
     `- owner: ${routes[team] || routes.general}`,
     `- urgent: ${urgent ? "yes" : "no"}`,
     `- page: ${line(body.page, 200)}`,
+    ...(idem ? [`- idem: ${idem}`, `- payload_sha256: ${hash}`] : []),
     "",
     "## Message",
     "",

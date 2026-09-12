@@ -47,7 +47,9 @@ export default async function handler(req, res) {
         else {
           const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: out.body.timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
           const offered = out.body.slots.filter(s => !args.date || fmt.format(new Date(s.iso)) === args.date);
-          result = { ok: true, timezone: out.body.timezone, slotMinutes: out.body.slotMinutes, slots: offered.slice(0, 8), moreAvailable: offered.length > 8 };
+          const bookingMode = out.body.bookingMode === 'calendar' ? 'calendar' : 'request';
+          result = { ok: true, timezone: out.body.timezone, slotMinutes: out.body.slotMinutes, bookingMode, slots: offered.slice(0, 8), moreAvailable: offered.length > 8,
+            instruction: bookingMode === 'request' ? 'Offer these as preferred appointment times. Requests need team confirmation; do not call them confirmed appointments.' : 'Availability is checked again when submitting. Confirm only if request_appointment returns confirmed.' };
         }
       } else if (name === 'request_appointment' || name === 'leave_message') {
         if (!callId || args.confirmedByCaller !== true) result = { ok: false, error: 'caller_confirmation_required', instruction: 'Read the details back and obtain the caller’s explicit approval before submitting.' };

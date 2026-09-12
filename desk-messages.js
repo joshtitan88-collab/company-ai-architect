@@ -107,7 +107,7 @@
     /\b(book|schedule|set up|grab)\b.{0,24}\b(call|meeting|slot|time|appointment|discovery)\b|\bappointment\b|\bsee the calendar\b/i;
 
   const YES_RE =
-    /^\s*(y|yes|yeah|yep|sure|correct|right|that's right|send it|go ahead|please do|try again|retry|resend|ok(ay)?)\b/i;
+    /^\s*(?:y|yes|yeah|yep|sure|correct|right|that's right|send it|go ahead|please do|try again|retry|resend|ok(?:ay)?)(?:[, ]+(?:please|send it|go ahead))?[.!?\s]*$/i;
   const NO_RE = /^\s*(n|no|nope|nah|cancel|never ?mind|forget it|don't|stop)\b/i;
 
   const LINES = {
@@ -285,6 +285,20 @@
     return { reply: confirmLine(s), action: "none" };
   }
 
+  // Correct contact/identity fields without replacing the visitor's message.
+  // Run before yes/no guards: "No, use this email" is a correction, not cancel.
+  function correctDetails(s, text) {
+    if (s.state !== "confirm" || /\b(?:message|tell them|say instead)\s*(?:should|is|:|that)/i.test(text)) return false;
+    let changed = false;
+    const contact = extractContact(text);
+    if (contact) { s.contact = contact; changed = true; }
+    const name = text.match(/\b(?:my name is|the name is|change (?:my |the )?name to)\s+([^,.;:!?@\n]+)/i);
+    if (name) { s.name = cleanName(name[1]); changed = true; }
+    const company = text.match(/\b(?:my company is|the company is|change (?:my |the )?company to)\s+([^,.;:!?@\n]+)/i);
+    if (company) { s.company = company[1].trim().slice(0, 80); changed = true; }
+    return changed;
+  }
+
   // ---- layer 2: deterministic turn ----------------------------------------
   // Returns { reply, action: "none"|"submit_message"|"handoff_book", payload? }
   function turn(session, userText) {
@@ -294,9 +308,11 @@
     if (s.state === "sending") return { reply: "I am still saving your message. One moment.", action: "none" };
 
     if (s.state === "done") {
-      s.state = "idle";
-      return { reply: LINES.already_sent, action: "none" };
+      if (!wants(text)) return { reply: LINES.already_sent, action: "none" };
+      Object.assign(s, createSession());
     }
+
+    if (correctDetails(s, text)) return { reply: confirmLine(s), action: "none" };
 
     if (active(s) && NO_RE.test(text)) {
       Object.assign(s, createSession());
@@ -315,6 +331,9 @@
         s.state = "sending";
         return done;
       }
+      if (/^\s*(?:yes|yeah|yep|sure|ok(?:ay)?)\b/i.test(text)) {
+        return { reply: "I haven’t sent it. Tell me what you’d like to change, or say send it when you’re ready.", action: "none" };
+      }
       // Anything that isn't yes/no is a correction to the message.
       harvest(s, text);
       const corrected = extractMessage(text) || text;
@@ -326,7 +345,7 @@
       s.state = "collect";
       harvest(s, text);
       const inline = extractMessage(text);
-      if (inline && inline.split(/\s+/).length >= 4 && !wants(inline)) s.message = inline;
+      if (inline && inline.split(/\s+/).length >= 3 && !wants(inline)) s.message = inline;
       return advance(s, !s.message);
     }
 
@@ -355,17 +374,26 @@
   async function turnSmart(session, userText, opts) {
     const s = session;
     const text = String(userText || "").trim();
+    const signal = opts && opts.signal;
+    if (signal && signal.aborted) throw new DOMException("Interrupted", "AbortError");
+
+    if (correctDetails(s, text)) return { reply: confirmLine(s), action: "none" };
 
     // Deterministic guards stay local — never spend an LLM call on "yes".
-    if (s.state === "sending" || s.state === "done" || (active(s) && (NO_RE.test(text) || YES_RE.test(text))) || typeof fetch !== "function") {
+    if (s.state === "sending" || s.state === "done" || (active(s) && (NO_RE.test(text) || YES_RE.test(text) || (s.state === "confirm" && /^\s*(?:yes|yeah|yep|sure|ok(?:ay)?)\b/i.test(text)))) || typeof fetch !== "function") {
       return turn(s, text);
     }
 
     const endpoint = (opts && opts.endpoint) || "/api/message-nlu";
     let d = null;
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    if (signal) signal.addEventListener("abort", abort, { once: true });
+    const timeout = setTimeout(abort, 10000);
     try {
       const r = await fetch(endpoint, {
         method: "POST",
+        signal: controller.signal,
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           text,
@@ -381,7 +409,11 @@
       if (r.ok) d = await r.json();
     } catch {
       d = null;
+    } finally {
+      clearTimeout(timeout);
+      if (signal) signal.removeEventListener("abort", abort);
     }
+    if (signal && signal.aborted) throw new DOMException("Interrupted", "AbortError");
     if (!d || !d.ok) return turn(s, text);
 
     if (d.handoff_book) {
@@ -391,10 +423,11 @@
     if (s.state === "idle" && !d.wants_message) return turn(s, text);
 
     if (s.state === "idle") s.state = "collect";
-    if (d.message && (!s.message || s.state === "confirm")) s.message = String(d.message).slice(0, 2000);
-    if (d.name && !s.name) s.name = String(d.name).slice(0, 80);
-    if (d.company && !s.company) s.company = String(d.company).slice(0, 80);
-    if (d.contact && !s.contact) {
+    const correctingDetails = s.state === "confirm" && (d.name || d.company || d.contact);
+    if (d.message && (!s.message || (s.state === "confirm" && !correctingDetails))) s.message = String(d.message).slice(0, 2000);
+    if (d.name && (!s.name || s.state === "confirm")) s.name = String(d.name).slice(0, 80);
+    if (d.company && (!s.company || s.state === "confirm")) s.company = String(d.company).slice(0, 80);
+    if (d.contact && (!s.contact || s.state === "confirm")) {
       const kind = d.contact_kind === "phone" ? "phone" : "email";
       const ok = kind === "email" ? EMAIL_RE.test(d.contact) : PHONE_RE.test(d.contact);
       if (ok) s.contact = { kind, value: String(d.contact).trim() };
