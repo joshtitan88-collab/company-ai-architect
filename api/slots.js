@@ -57,19 +57,35 @@ export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).json({ error: "method" });
+  let stage = "load_schedule";
   try {
     const data = loadAvailability();
+    stage = "verify_private_intake";
     const intake = await verifyPrivateIntake(process.env.GITHUB_TOKEN);
-    if (!intake.ok) return res.status(503).json({ error: "availability_unavailable" });
+    if (!intake.ok) throw new Error(intake.error);
+    stage = "read_bookings";
     const records = await listBookings(process.env.GITHUB_TOKEN, intake.repo);
     const reserved = records.map(bookingRange).filter((range) => Number.isFinite(range.start));
     if (googleCalendarConfigured()) {
+      stage = "read_calendar";
       const liveBusy = await getGoogleBusy(new Date().toISOString(), new Date(Date.now() + 21 * 86400000).toISOString());
       data.busy = [...(data.busy || []), ...liveBusy];
     }
+    stage = "generate_slots";
     const slots = openSlots(data).filter((s) => !reserved.some((r) => overlaps(s.start, s.start + data.slotMinutes * 60000, r.start, r.end)));
     return res.status(200).json({ timezone: data.timezone, slotMinutes: data.slotMinutes, count: slots.length, slots });
-  } catch {
+  } catch (error) {
+    // Log only bounded diagnostic codes. Provider messages, paths, credentials and
+    // customer data must never reach either runtime logs or the public response.
+    const known = new Set(["intake_not_configured", "intake_unavailable", "intake_must_be_private", "availability_unavailable", "google_token_failed", "google_freebusy_failed", "invalid_schedule"]);
+    const code = stage === "load_schedule" && error?.code === "ENOENT"
+      ? "schedule_file_missing"
+      : known.has(error?.message) ? error.message : "unexpected_failure";
+    console.error("[sam.availability]", JSON.stringify({
+      stage, code,
+      githubTokenPresent: Boolean(process.env.GITHUB_TOKEN),
+      intakeRepoPresent: Boolean(process.env.INTAKE_REPO),
+    }));
     return res.status(503).json({ error: "availability_unavailable" });
   }
 }
