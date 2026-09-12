@@ -643,6 +643,7 @@
     const grounded = KNOWLEDGE ? KNOWLEDGE.answer(text, session) : null;
     if (grounded && grounded.intent !== "book" && (["demo", "price", "privacy"].includes(grounded.intent) || Object.prototype.hasOwnProperty.call(grounded, "demo"))) {
       if (Object.prototype.hasOwnProperty.call(grounded, "demo")) session.demo = grounded.demo;
+      if (grounded.intent === "demo" || grounded.leaveBooking) session.phase = "idle";
       ingest(session, text, {});
       remember(session, grounded.reply);
       return result(session, grounded.intent, grounded.reply, grounded.action, { source: grounded.source, demo: session.demo });

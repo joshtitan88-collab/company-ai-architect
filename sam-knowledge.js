@@ -38,7 +38,7 @@
     const directPrice = /\b(price|pricing|cost|how much|expensive|fees?)\b/i.test(s);
     const directPrivacy = /\b(privacy|hipaa|secure|security|confidential|data (?:go|stay|stored|leave|live)|where.{0,20}(?:data|chat)|own hardware|on[- ]prem|compliance)\b/i.test(s);
     if (/\b(reschedule|cancel|change)\b.{0,35}\b(appointment|booking|discovery|call)\b/i.test(s)) return reply("contact", "I can take an appointment-change request for the team. Your existing appointment stays in place until the change is confirmed. Would you like to leave that request?", "none", { demo: null });
-    if (/just (?:looking|browsing)|not ready|no pressure/i.test(s)) return reply("product", "Of course—take your time. You can ask me anything about our services, or we can try a short example for your business whenever you like.");
+    if (/just (?:looking|browsing)|not ready|no pressure/i.test(s)) return reply("product", "Of course—take your time. You can ask me anything about our services, or we can try a short example for your business whenever you like.", "none", { demo: null, leaveBooking: true });
     if (directPrice) return reply("price", PRICE, wantsBooking(s) ? "show_calendar" : "show_packages");
     if (directPrivacy) return reply("privacy", PRIVACY);
     if (/\b(stop|end|exit|finish) (?:the )?demo\b|\bback to (?:normal|business)\b/i.test(s)) {
