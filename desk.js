@@ -150,8 +150,9 @@ window.addEventListener("samvoice:start", () => setMode("talk"));
 window.addEventListener("samvoice:end", () => { if (mode === "talk") setMode("idle"); });
 window.addEventListener("samvoice:cancel", () => { if (mode === "talk") setMode("idle"); });
 window.addEventListener("samvoice:loading", () => setMode("process"));
-window.addEventListener("samvoice:unavailable", () => {
+window.addEventListener("samvoice:unavailable", (event) => {
   setMode("idle");
+  if (event.detail && event.detail.error === "tts_not_configured") return;
   if (hint) { hint.textContent = "Voice is unavailable right now. You can keep chatting here."; hint.classList.remove("hidden"); }
 });
 window.addEventListener("sam3d:ready", () => setMode(mode));

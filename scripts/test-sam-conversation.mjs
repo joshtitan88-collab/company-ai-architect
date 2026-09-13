@@ -25,7 +25,7 @@ assert.notEqual(t.intent,'book'); assert.equal(t.action,'none'); assert.equal(s.
 t=await Sam.turn(s,'Can you answer calls and schedule appointments?',offline);
 assert.equal(t.action,'none'); assert.match(t.reply,/needs a connected phone system/);
 t=await Sam.turn(s,'How much does the audit cost?',offline);
-assert.match(t.reply,/fifteen hundred/); assert.match(t.reply,/forty-five hundred/); assert.equal(t.action,'show_packages');
+assert.match(t.reply,/one thousand five hundred/); assert.match(t.reply,/four thousand five hundred/); assert.equal(t.action,'show_packages');
 t=await Sam.turn(s,'Where is my data stored?',offline);
 assert.match(t.reply,/hosted services/); assert.match(t.reply,/AI provider/);
 console.log('PASS pain is not booking consent; fixed prices, capability boundaries and truthful privacy');

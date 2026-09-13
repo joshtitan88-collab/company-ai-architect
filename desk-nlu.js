@@ -48,6 +48,7 @@
   const LINES = {
     hello: GREETING,
     hello_again: "Sam again. Discovery, prices, privacy, or I can book a free thirty minutes.",
+    who: "I'm Sam, the receptionist for Company AI Architect. I book discovery, quote the packages, and talk privacy. Not a ChatGPT login.",
     product:
       "We design AI automation around how your business works, from customer intake to useful job notes and connected workflows. Private AI on hardware you own is one option. What would you like to improve?",
     price:
@@ -516,7 +517,7 @@
         };
       case "who":
         return {
-          reply: "I'm Sam, Company AI Architect's AI receptionist. I can explain our services, demonstrate a customer conversation, help you schedule discovery, or take a message.",
+          reply: LINES.who,
           action: "none",
         };
       case "product":

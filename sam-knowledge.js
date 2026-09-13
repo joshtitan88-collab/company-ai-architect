@@ -5,7 +5,7 @@
 (function (root) {
   "use strict";
   const GREETING = "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?";
-  const PRICE = "Discovery is free for thirty minutes. The AI Opportunity Audit is fifteen hundred dollars. Architect plus the fourteen-day package starts at forty-five hundred dollars; you keep the audit roadmap even if you stop there.";
+  const PRICE = "Discovery is free. The written audit is one thousand five hundred. Architect plus a fourteen-day package starts at four thousand five hundred. You keep the map even if you stop after the audit.";
   const PRIVACY = "A private client installation can run on hardware you own. This website uses hosted services, and chat may be processed by an AI provider. Please keep customer records and sensitive information out of this conversation.";
 
   function reply(intent, text, action, extra) {
@@ -91,7 +91,7 @@
       return reply("product", "We're based around Greater Atlanta and work with businesses nationwide remotely. Discovery helps us establish what can be handled remotely and whether any local hardware is needed.");
     }
     if (/\b(who are you|your name|are you (?:real|human|ai|a bot)|avatar|receptionist)\b/i.test(s)) {
-      return reply("who", "I'm Sam, Company AI Architect's AI receptionist. I can explain our services, walk you through a sample customer conversation, help you choose a discovery time, or take a message. What would be most useful for you?");
+      return reply("who", "I'm Sam, the receptionist for Company AI Architect. I book discovery, quote the packages, and talk privacy. Not a ChatGPT login.");
     }
     if (/\b(missed|after.hours|manual|repetitive|voicemail|overwhelmed|drowning|job notes)\b/i.test(s)) {
       return reply("shop_leak", "That sounds like a good workflow to examine: what comes in, what needs a response, and where the details get lost. We can design intake and follow-up around that process. Which part takes the most attention from your team?");
