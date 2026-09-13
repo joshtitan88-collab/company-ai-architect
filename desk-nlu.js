@@ -47,7 +47,7 @@
 
   const LINES = {
     hello: GREETING,
-    hello_again: "Hi again. What would you like to explore?",
+    hello_again: "Sam again. Discovery, prices, privacy, or I can book a free thirty minutes.",
     product:
       "We design AI automation around how your business works, from customer intake to useful job notes and connected workflows. Private AI on hardware you own is one option. What would you like to improve?",
     price:
@@ -56,14 +56,14 @@
       "A private client installation can run on hardware you own. This website uses hosted services, and chat may be processed by an AI provider. Please keep customer records and sensitive information out of this conversation.",
     schedule: "Here are open discovery times in Eastern. Openings only — not who is on the book. Pick a slot.",
     schedule_none:
-      "I don't have confirmed openings to show in this window. You can try the calendar again or leave a message with your preferred time.",
-    leak: "A well-designed intake workflow can capture the details that get lost between calls and jobs. Which part of that process would you most like to improve?",
+      "No open weekday slots in this window. Name a day and time and I'll still take the request.",
+    leak: "That's the leak. I catch it before it becomes a voicemail. Pick a free thirty-minute discovery.",
     contact: "I can take a message right here and it goes straight to the right team — or I can book you a free thirty-minute discovery now.",
     human: "I take the front, and every booking goes straight to the team. Leave me a message, or pick a discovery slot and I'll file it.",
     hours: "Discovery is weekdays, nine to five Eastern, thirty minutes, free. Openings only on the calendar — no names.",
-    thanks: "You're very welcome. I'm here if anything else comes to mind.",
+    thanks: "You're welcome. Discovery is free if you want a slot.",
     bye: "Glad to help. I'm right here whenever you need us.",
-    none: "Tell me a little more about what you're trying to improve, and I'll help you think it through.",
+    none: "No problem. What else — prices, privacy, or a later time?",
     booked: "Your discovery booking is confirmed. I'm glad we found a time.",
     book_fail: "I couldn't confirm that booking just now. Please try again or leave a message with your preferred time.",
     need_name: "What's your name?",

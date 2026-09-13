@@ -82,13 +82,11 @@ function setup({ reducedMotion = false, hub, owner = 'tab-a', clock = 1000, remo
 }
 {
   const h = setup();
-  const pending = h.voice.play('Tell me about workflow automation');
+  const pending = h.voice.play(h.voice.GREETING);
   await flush();
-  assert.equal(h.requests.length, 1);
-  assert.equal(h.requests[0].url, '/api/tts', 'unknown text goes directly to TTS');
-  assert.equal(JSON.parse(h.requests[0].init.body).voice_id, 'eve');
+  assert.equal(h.requests.length, 0, 'confirmed greeting never calls paid TTS');
   assert.equal(h.audios.length, 1);
-  assert.equal(h.events.filter(e => e.name === 'start').length, 0, 'no speaking during TTS/media loading');
+  assert.equal(h.events.filter(e => e.name === 'start').length, 0, 'no speaking during media loading');
   h.audios[0].playing();
   h.audios[0].playing();
   h.frame();
@@ -106,31 +104,19 @@ function setup({ reducedMotion = false, hub, owner = 'tab-a', clock = 1000, remo
 }
 {
   const h = setup();
-  const body = deferred();
-  h.fetchWith(async () => h.response(body.promise));
-  const old = h.voice.play('Old reply');
+  const unknown = h.voice.play('Tell me about workflow automation');
   await flush();
-  h.fetchWith(async () => h.response());
-  const next = h.voice.play('New reply');
-  await flush();
-  assert.equal((await old).status, 'cancelled', 'body cancellation settles before network returns');
-  assert.equal(h.requests[0].init.signal.aborted, true);
-  assert.equal(h.audios.length, 1);
-  h.audios[0].playing();
-  body.resolve(new ArrayBuffer(128));
-  await flush();
-  assert.equal(h.urls.length, 1, 'late body cannot allocate/cache stale audio');
-  assert.equal(h.audios.length, 1, 'late body cannot speak over new reply');
-  h.audios[0].end();
-  assert.equal((await next).status, 'ended');
-  assert.equal(h.events.filter(e => e.name === 'start')[0].text, 'New reply');
+  assert.equal(h.requests.length, 0, 'unknown text must not call paid TTS');
+  assert.equal(h.audios.length, 0);
+  assert.equal((await unknown).error, 'tts_not_configured');
+  assert.ok(h.events.some(e => e.name === 'unavailable'));
 }
 {
   const h = setup();
   const old = h.voice.play(h.voice.GREETING);
   assert.equal(h.requests.length, 0, 'confirmed greeting plays directly');
   h.audios[0].playing();
-  const next = h.voice.play('Next reply');
+  const next = h.voice.play("What's your name?");
   assert.equal((await old).status, 'cancelled', 'interrupt settles an active end wait');
   await flush();
   h.audios[0].end();
@@ -146,21 +132,16 @@ function setup({ reducedMotion = false, hub, owner = 'tab-a', clock = 1000, remo
 }
 {
   const h = setup();
-  const hung = deferred();
-  h.fetchWith(() => hung.promise);
   const p = h.voice.play('Network hangs');
   await flush();
-  h.timeout(25000);
-  assert.equal((await p).error, 'tts_timeout');
-  assert.equal(h.requests[0].init.signal.aborted, true);
-  assert.equal(h.timers.size, 0);
-  hung.resolve(h.response());
-  await flush();
+  assert.equal((await p).error, 'tts_not_configured');
+  assert.equal(h.requests.length, 0);
   assert.equal(h.audios.length, 0);
+  assert.equal(h.timers.size, 0);
 }
 {
   const h = setup();
-  const p = h.voice.play('Playback never starts');
+  const p = h.voice.play(h.voice.GREETING);
   await flush();
   h.timeout(12000);
   assert.equal((await p).error, 'audio_start_timeout');
@@ -169,7 +150,7 @@ function setup({ reducedMotion = false, hub, owner = 'tab-a', clock = 1000, remo
 }
 {
   const h = setup();
-  const p = h.voice.play('Playback never ends');
+  const p = h.voice.play(h.voice.GREETING);
   await flush();
   h.audios[0].playing();
   h.timeout(17000);
@@ -182,14 +163,13 @@ function setup({ reducedMotion = false, hub, owner = 'tab-a', clock = 1000, remo
   const h = setup();
   const p = h.voice.play('constructor');
   await flush();
-  assert.equal(h.requests[0].url, '/api/tts', 'inherited properties are not canned assets');
-  h.voice.stop('before_playback');
-  assert.equal((await p).status, 'cancelled', 'interrupt settles before playing event');
-  h.audios[0].playing();
+  assert.equal(h.requests.length, 0, 'inherited properties are not canned assets');
+  assert.equal((await p).error, 'tts_not_configured');
+  assert.equal(h.audios.length, 0);
   assert.equal(h.events.some(e => e.name === 'start'), false);
   assert.equal(h.timers.size, 0);
 }
-console.log('PASS SamVoice: actual playback start, Eve TTS, no speculative assets, one analyser, moving pauses, cancellation, stale body/events, bounded fetch/start/end.');
+console.log('PASS SamVoice: canned Eve playback, no paid TTS, one analyser, moving pauses, cancellation, bounded start/end.');
 
 {
   const h = setup();
@@ -265,17 +245,13 @@ for (const lifecycle of ['hide', 'pagehide']) {
 }
 {
   const h = setup();
-  const body = deferred();
-  h.fetchWith(async () => h.response(body.promise));
-  const pending = h.voice.play('Do not speak after this tab is hidden');
+  const pending = h.voice.play(h.voice.GREETING);
   await flush();
   h.hide();
   assert.equal((await pending).status, 'cancelled');
-  assert.equal(h.requests[0].init.signal.aborted, true);
-  body.resolve(new ArrayBuffer(128));
   await flush();
-  assert.equal(h.audios.length, 0, 'a hidden tab cannot speak a late network response');
-  assert.equal(h.urls.length, 0);
+  assert.equal(h.audios[0].paused, true, 'a hidden tab cannot keep speaking');
+  assert.equal(h.audios[0].muted, true);
 }
 {
   const hub = channelHub();
@@ -340,10 +316,10 @@ function remoteHarness({ enabled = Promise.resolve(true) } = {}) {
 {
   const r = remoteHarness();
   const h = setup(r);
-  const pending = h.voice.play('A fresh live video response');
+  const pending = h.voice.play(h.voice.GREETING);
   await flush(); await flush();
   assert.equal(r.calls.length, 1);
-  assert.equal(r.calls[0].url, h.urls[0], 'live rendering consumes the generated TTS URL');
+  assert.equal(r.calls[0].url, './assets/sam-hello-v2.mp3', 'live rendering consumes the canned Eve clip');
   assert.equal(h.audios.length, 0, 'the live renderer never competes with a local Audio element');
   assert.equal(h.events.some(event => event.name === 'start'), false);
   r.calls[0].start();
@@ -351,7 +327,7 @@ function remoteHarness({ enabled = Promise.resolve(true) } = {}) {
   assert.equal(start.source, 'video');
   assert.equal(start.audio, r.calls[0].audio);
   assert.equal(start.generation, h.events.find(event => event.name === 'loading').generation);
-  assert.equal(start.text, 'A fresh live video response');
+  assert.equal(start.text, h.voice.GREETING);
   r.calls[0].pending.resolve();
   assert.equal((await pending).status, 'ended');
   assert.equal(h.audios.length, 0);
@@ -385,7 +361,7 @@ for (const action of ['interrupt', 'hide', 'another_tab']) {
   const old = h.voice.play(h.voice.GREETING);
   await flush();
   r.calls[0].start();
-  const next = h.voice.play('The replacement live reply');
+  const next = h.voice.play("What's your name?");
   await flush(); await flush();
   assert.equal((await old).status, 'cancelled');
   assert.equal(r.calls.length, 2);
@@ -414,7 +390,7 @@ for (const action of ['interrupt', 'hide', 'another_tab']) {
 for (const failure of ['annotated', 'plain', 'timeout']) {
   const r = remoteHarness();
   const h = setup(r);
-  const pending = h.voice.play('This sentence has already begun');
+  const pending = h.voice.play(h.voice.GREETING);
   await flush(); await flush();
   r.calls[0].start();
   if (failure === 'timeout') h.timeout(300000);

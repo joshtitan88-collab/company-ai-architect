@@ -1,6 +1,6 @@
 /**
  * The single Eve audio authority. play() resolves when finished OR cancelled.
- * Only confirmed canned assets are attempted; other text goes directly to /api/tts.
+ * Only confirmed canned Eve assets are spoken. Unknown text stays on screen.
  * Events: loading, start (actual playback; includes audio), level (RMS 0..1),
  * end, cancel, unavailable, error. Every event includes its generation.
  * SamVoice owns the sole MediaElementSource; visual consumers use level events.
@@ -13,9 +13,52 @@
     return;
   }
   const GREETING = "Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?";
-  // Verified against assets/voice/manifest.json. Never guess an asset filename.
+  // Verified against files in assets/voice. Never guess an asset filename.
+  // Spoken replies use these Eve clips only. There is no paid TTS at request time.
   const CANNED = { hello: "./assets/sam-hello-v2.mp3" };
   CANNED[GREETING] = "./assets/sam-hello-v2.mp3";
+  CANNED["Discovery is free. The written audit is one thousand five hundred. Architect plus a fourteen-day package starts at four thousand five hundred. You keep the map even if you stop after the audit."] = "./assets/voice/discovery-is-free-the-written-audit-is-one-thousand-five-hundred-architect-plus-.mp3";
+  CANNED["Here are open discovery times in Eastern. Openings only — not who is on the book. Pick a slot."] = "./assets/voice/here-are-open-discovery-times-in-eastern-openings-only-not-who-is-on-the-book-pi.mp3";
+  CANNED["I can take a message right here and it goes straight to the right team — or I can book you a free thirty-minute discovery now."] = "./assets/voice/i-can-take-a-message-right-here-and-it-goes-straight-to-the-right-team-or-i-can-.mp3";
+  CANNED["I take the front, and every booking goes straight to the team. Leave me a message, or pick a discovery slot and I'll file it."] = "./assets/voice/i-take-the-front-and-every-booking-goes-straight-to-the-team-leave-me-a-message-.mp3";
+  CANNED["Discovery is weekdays, nine to five Eastern, thirty minutes, free. Openings only on the calendar — no names."] = "./assets/voice/discovery-is-weekdays-nine-to-five-eastern-thirty-minutes-free-openings-only-on-.mp3";
+  CANNED["Glad to help. I'm right here whenever you need us."] = "./assets/voice/glad-to-help-i-m-right-here-whenever-you-need-us.mp3";
+  CANNED["What's your name?"] = "./assets/voice/what-s-your-name.mp3";
+  CANNED["Work email?"] = "./assets/voice/work-email.mp3";
+  CANNED["Shop or company name?"] = "./assets/voice/shop-or-company-name.mp3";
+  CANNED["Pick an open time on the calendar, or name a weekday and time in Eastern."] = "./assets/voice/pick-an-open-time-on-the-calendar-or-name-a-weekday-and-time-in-eastern.mp3";
+  CANNED["I'll file that discovery now?"] = "./assets/voice/i-ll-file-that-discovery-now.mp3";
+  CANNED["Of course — I would be happy to pass that along. What would you like me to say?"] = "./assets/voice/of-course-i-would-be-happy-to-pass-that-along-what-would-you-like-me-to-say.mp3";
+  CANNED["Go ahead, I am listening — what would you like me to pass along?"] = "./assets/voice/go-ahead-i-am-listening-what-would-you-like-me-to-pass-along.mp3";
+  CANNED["And who shall I say it is from?"] = "./assets/voice/and-who-shall-i-say-it-is-from.mp3";
+  CANNED["And what is the best way to reach you — an email or a phone number?"] = "./assets/voice/and-what-is-the-best-way-to-reach-you-an-email-or-a-phone-number.mp3";
+  CANNED["I did not quite catch a working email or phone number there — could you give me one of those?"] = "./assets/voice/i-did-not-quite-catch-a-working-email-or-phone-number-there-could-you-give-me-on.mp3";
+  CANNED["Of course, consider it dropped. Is there anything else I can help with — our packages, privacy, or a free thirty-minute discovery call?"] = "./assets/voice/of-course-consider-it-dropped-is-there-anything-else-i-can-help-with-our-package.mp3";
+  CANNED["That message is already on its way. Is there anything else I can help with?"] = "./assets/voice/that-message-is-already-on-its-way-is-there-anything-else-i-can-help-with.mp3";
+  CANNED["Even better — let us find you a time. Here are the open slots."] = "./assets/voice/even-better-let-us-find-you-a-time-here-are-the-open-slots.mp3";
+  CANNED["That time just filled. Here is what's still open."] = "./assets/voice/that-time-just-filled-here-is-what-s-still-open.mp3";
+  CANNED["I've noted your interest, and someone will follow up within a few hours."] = "./assets/voice/i-ve-noted-your-interest-and-someone-will-follow-up-within-a-few-hours.mp3";
+  CANNED["You're already on the book for that time."] = "./assets/voice/you-re-already-on-the-book-for-that-time.mp3";
+  CANNED["You're set. You'll get a confirmation shortly. I'm glad we found a time."] = "./assets/voice/you-re-set-you-ll-get-a-confirmation-shortly-i-m-glad-we-found-a-time.mp3";
+  CANNED["I could not file that slot just now. Try again, or leave me a message and someone will follow up."] = "./assets/voice/i-could-not-file-that-slot-just-now-try-again-or-leave-me-a-message-and-someone-.mp3";
+  CANNED["Welcome back — good to see you again."] = "./assets/voice/welcome-back-good-to-see-you-again.mp3";
+  CANNED["This browser has no speech recognition — type and I'll help just the same."] = "./assets/voice/this-browser-has-no-speech-recognition-type-and-i-ll-help-just-the-same.mp3";
+  CANNED["I didn't quite catch that — type it and I'll help just the same."] = "./assets/voice/i-didn-t-quite-catch-that-type-it-and-i-ll-help-just-the-same.mp3";
+  CANNED["The mic did not start — type and I'll help just the same."] = "./assets/voice/the-mic-did-not-start-type-and-i-ll-help-just-the-same.mp3";
+  CANNED["I'm Sam, the receptionist for Company AI Architect. I book discovery, quote the packages, and talk privacy. Not a ChatGPT login."] = "./assets/voice/i-m-sam-the-receptionist-for-company-ai-architect-i-book-discovery-quote-the-pac.mp3";
+  CANNED["No problem. Discovery stays free whenever you want it."] = "./assets/voice/no-problem-discovery-stays-free-whenever-you-want-it.mp3";
+  CANNED["No problem. What else — prices, privacy, or a later time?"] = "./assets/voice/no-problem-what-else-prices-privacy-or-a-later-time.mp3";
+  CANNED["I don't have that opening. Name another weekday and time."] = "./assets/voice/i-don-t-have-that-opening-name-another-weekday-and-time.mp3";
+  CANNED["Local AI on hardware you own — a tower or a mini at your shop. Calls, jobs, and notes."] = "./assets/voice/local-ai-on-hardware-you-own-a-tower-or-a-mini-at-your-shop-calls-jobs-and-notes.mp3";
+  CANNED["That's the leak. I catch it before it becomes a voicemail. Pick a free thirty-minute discovery."] = "./assets/voice/that-s-the-leak-i-catch-it-before-it-becomes-a-voicemail-pick-a-free-thirty-minu.mp3";
+  CANNED["You're welcome. Discovery is free if you want a slot."] = "./assets/voice/you-re-welcome-discovery-is-free-if-you-want-a-slot.mp3";
+  CANNED["It's on the book. You'll get a confirmation. Nothing else is stored on this page."] = "./assets/voice/it-s-on-the-book-you-ll-get-a-confirmation-nothing-else-is-stored-on-this-page.mp3";
+  CANNED["All set. It is with the right person now."] = "./assets/voice/all-set-it-is-with-the-right-person-now.mp3";
+  CANNED["I am sorry I could not file that just now. If you email us directly it will reach."] = "./assets/voice/i-am-sorry-i-could-not-file-that-just-now-if-you-email-us-directly-it-will-reach.mp3";
+  CANNED["I can book a free discovery, quote the packages, or talk privacy. Thirty minutes free."] = "./assets/voice/i-can-book-a-free-discovery-quote-the-packages-or-talk-privacy-thirty-minutes-fr.mp3";
+  CANNED["Sam again. Discovery, prices, privacy, or I can book a free thirty minutes."] = "./assets/voice/sam-again-discovery-prices-privacy-or-i-can-book-a-free-thirty-minutes.mp3";
+  CANNED["Customer files do not belong on this site. The discovery call does not need them."] = "./assets/voice/customer-files-do-not-belong-on-this-site-the-discovery-call-does-not-need-them-.mp3";
+  CANNED["No open weekday slots in this window. Name a day and time and I'll still take the request."] = "./assets/voice/no-open-weekday-slots-in-this-window-name-a-day-and-time-and-i-ll-still-take-the.mp3";
   const FETCH_TIMEOUT = 25000;
   const START_TIMEOUT = 12000;
   const END_TIMEOUT = 300000;
@@ -251,27 +294,6 @@
     });
   }
 
-  async function fetchTts(s) {
-    const ctrl = new AbortController();
-    s.controller = ctrl;
-    try {
-      return await bounded(s, async function () {
-        const response = await fetch("/api/tts", {
-          method: "POST", headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text: s.text, voice_id: "eve" }), signal: ctrl.signal,
-        });
-        check(s);
-        if (!response.ok) throw new Error("tts_" + response.status);
-        const buffer = await response.arrayBuffer();
-        // The body may resolve after abort or after a new reply. Never cache or play it.
-        check(s);
-        if (ctrl.signal.aborted) throw cancelled();
-        if (!buffer || buffer.byteLength < 64) throw new Error("tts_empty");
-        return new Blob([buffer], { type: response.headers.get("content-type") || "audio/mpeg" });
-      }, FETCH_TIMEOUT, "tts_timeout", function () { ctrl.abort(); });
-    } finally { if (s.controller === ctrl) s.controller = null; }
-  }
-
   async function play(text) {
     const t = String(text || "").trim();
     if (!t) return { status: "empty" };
@@ -282,37 +304,12 @@
     prepareContext();
     emit("loading", s);
     try {
-      let origin = "tts";
       const asset = Object.prototype.hasOwnProperty.call(CANNED, t) ? CANNED[t] : null;
-      let complete = false;
-      if (asset) {
-        try { await playUrl(s, asset, "asset"); complete = true; origin = "asset"; }
-        catch (error) {
-          check(s);
-          if (error.playbackStarted || error.message === "audio_gesture_required") throw error;
-        }
-      }
-      if (!complete) {
-        let url = cacheGet(t);
-        if (url) {
-          try { await playUrl(s, url, "tts"); complete = true; }
-          catch (error) {
-            check(s);
-            cacheDelete(t);
-            if (error.playbackStarted || error.message === "audio_gesture_required") throw error;
-          }
-        }
-        if (!complete) {
-          const blob = await fetchTts(s);
-          check(s);
-          url = URL.createObjectURL(blob);
-          cachePut(t, url);
-          await playUrl(s, url, "tts");
-        }
-      }
+      if (!asset) throw new Error("tts_not_configured");
+      await playUrl(s, asset, "asset");
       check(s);
       active = null;
-      emit("end", s, { source: origin });
+      emit("end", s, { source: "asset" });
       return { status: "ended" };
     } catch (error) {
       if (!isActive(s)) return { status: "cancelled" };

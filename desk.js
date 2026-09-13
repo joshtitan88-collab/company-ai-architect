@@ -1,6 +1,6 @@
 /**
  * desk.js — Sam's front desk, wired to the layered stack:
- *   SamVoice (canned mp3 / server TTS) → SamNLU (conversation + booking)
+ *   SamVoice (canned Eve mp3 only) → SamNLU (conversation + booking)
  *   → SamMessages (message intake + routing) → SamQualify (silent lead notes)
  * Script order (receptionist.html): sam-voice > desk-nlu > desk-messages >
  * desk-qualify > sam-states > desk.js. No browser speechSynthesis, ever.
@@ -333,7 +333,7 @@ async function postBook(payload) {
       selected = null;
       session.booking.slotIso = "";
       await loadSlots();
-      if (bookingTurn === turnNumber) { speak("That time has just been taken. Let's choose another opening.", bookingTurn); renderCal(); }
+      if (bookingTurn === turnNumber) { speak("That time just filled. Here is what's still open.", bookingTurn); renderCal(); }
       return false;
     }
     if (!r.ok || !data.ok || !data.id) throw new Error("booking_failed");
@@ -344,8 +344,14 @@ async function postBook(payload) {
     selected = null;
     if (bookingTurn === turnNumber) {
       speak(confirmed
-        ? "Your discovery appointment is confirmed." + (data.confirmationEmail?.sent ? " A confirmation email has been sent." : " You can add the time to your calendar below.")
-        : "Your appointment request has been saved for the team. It still needs confirmation." + (data.confirmationEmail?.sent ? " I've sent an email acknowledging your request." : ""), bookingTurn);
+        ? "You're set. You'll get a confirmation shortly. I'm glad we found a time."
+        : "I've noted your interest, and someone will follow up within a few hours.", bookingTurn);
+      if (hint) {
+        hint.textContent = confirmed
+          ? (data.confirmationEmail?.sent ? "A confirmation email has been sent. You can add the time to your calendar below." : "You can add the time to your calendar below.")
+          : (data.confirmationEmail?.sent ? "I sent an email acknowledging your request. This still needs team confirmation." : "This still needs team confirmation.");
+        hint.classList.remove("hidden");
+      }
       showPostBooking();
     } else {
       addLog("sam", confirmed ? "Your discovery appointment was confirmed." : "Your discovery request was saved and is awaiting confirmation.");
@@ -353,7 +359,7 @@ async function postBook(payload) {
     return true;
   } catch {
     session.phase = "confirming";
-    if (bookingTurn === turnNumber) speak("I couldn't confirm that submission. Your details are still here; please try again.", bookingTurn);
+    if (bookingTurn === turnNumber) speak("I could not file that slot just now. Try again, or leave me a message and someone will follow up.", bookingTurn);
     return false;
   } finally { bookingBusy = false; }
 }
@@ -455,10 +461,11 @@ async function begin(greet = true) {
   if (openingTurn !== turnNumber) return;
   const visitor = getVisitor();
   if (visitor && visitor.seen) {
-    let line = "Welcome back — good to see you again.";
+    const line = "Welcome back — good to see you again.";
     const lb = visitor.lastBooking;
-    if (lb && lb.iso && new Date(lb.iso).getTime() > Date.now()) {
-      line += (lb.confirmed ? " Your appointment is for " : " You requested ") + lb.slotLabel + ". What can I help with?";
+    if (lb && lb.iso && new Date(lb.iso).getTime() > Date.now() && hint) {
+      hint.textContent = (lb.confirmed ? "Your appointment is for " : "You requested ") + lb.slotLabel + ".";
+      hint.classList.remove("hidden");
     }
     greetingTimer = setTimeout(() => speak(line, openingTurn), 50);
   } else {

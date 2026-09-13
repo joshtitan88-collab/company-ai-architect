@@ -121,7 +121,7 @@
     confirm_prefix: "Let me read that back. ",
     confirm_suffix: " Shall I send it?",
     sent: "Your message is saved for {team}, with your contact details for follow-up.",
-    sent_short: "Your message is saved for the team, along with your contact details.",
+    sent_short: "I've noted your interest, and someone will follow up within a few hours.",
     send_failed:
       "I could not save that just now. I still have your message here — say try again and I will resend it.",
     cancelled:

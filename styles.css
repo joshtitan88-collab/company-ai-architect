@@ -472,6 +472,10 @@ footer .mark { margin: 0 0 .35rem; }
 /* Videos: hidden until JS marks the active layer with .on — crossfade, no jump cuts */
 .desk-vid { opacity: 0; }
 .desk-vid.on { opacity: 1; }
+.desk.has-vid.talking .desk-vid.talk {
+  transform: scale(calc(1 + (var(--sam-voice-level, 0) * 0.016)));
+  filter: brightness(calc(1 + (var(--sam-voice-level, 0) * 0.12)));
+}
 .desk.listening .desk-vid, .desk.listening .desk-still {
   transform: scale(1.035);
   filter: brightness(1.08);
