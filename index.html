@@ -3,23 +3,39 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Company AI Architect — Meet Sam</title>
-  <meta name="description" content="Talk to Sam, our AI receptionist. Ask anything, leave a message, or book a free 30-minute discovery call. Hardware you own." />
-  <link rel="canonical" href="https://companyaiarchitect.com/" />
+  <title>Company AI Architect — Local AI Operator for Service Shops</title>
+  <meta name="description" content="Turn missed calls into booked jobs with a private local AI operator. Talk to Sam (live proof), then book a free discovery. Setup $4.5–6.5k." />
+  <link rel="canonical" href="https://www.companyaiarchitect.com/" />
   <meta name="theme-color" content="#05060f" />
-  <meta property="og:title" content="Company AI Architect — Meet Sam" />
-  <meta property="og:description" content="Sam is our AI receptionist — and the product demo. Talk to her, then book a free discovery call." />
+  <meta property="og:title" content="Company AI Architect — Missed calls → booked jobs" />
+  <meta property="og:description" content="Private local AI operator for HVAC and home-service shops. Sam is the live proof. Free discovery. Setup $4.5–6.5k." />
   <meta property="og:image" content="https://companyaiarchitect.com/assets/desk.jpg" />
   <meta property="og:url" content="https://companyaiarchitect.com/" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%235b8cff'/%3E%3Cstop offset='1' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="./sam-showcase.css" />
+
+  <style>
+    .op-price { margin:.75rem 0 0; font-size:1rem; color:rgba(232,238,246,.9); }
+    .op-price a { color:#9ec1ff; }
+    .proof-strip { display:flex; flex-wrap:wrap; gap:.5rem; margin:1rem 0 0; }
+    .proof-strip span { font-size:.78rem; padding:.35rem .7rem; border-radius:999px; border:1px solid rgba(255,255,255,.14); color:rgba(232,238,246,.8); background:rgba(10,14,24,.45); }
+    .site-sections { position:relative; z-index:2; background:#05060f; padding:3rem 1.25rem 4rem; border-top:1px solid rgba(255,255,255,.08); }
+    .site-sections .wrap { max-width:920px; margin:0 auto; }
+    .site-sections h2 { font-size:1.45rem; margin:2.25rem 0 .75rem; color:#fff; }
+    .site-sections h3 { font-size:1.1rem; margin:1.25rem 0 .4rem; color:#fff; }
+    .site-sections p, .site-sections li { color:rgba(232,238,246,.86); line-height:1.55; font-size:1.02rem; }
+    .site-sections a { color:#9ec1ff; }
+    .btn-deposit { display:inline-flex; padding:.65rem 1rem; border-radius:999px; border:1px solid rgba(91,140,255,.45); color:#cfe0ff; text-decoration:none; font-weight:600; }
+    .hint, .fine, .enter-sub { font-size:.95rem !important; }
+    #mic:focus-visible, #q:focus-visible, #send:focus-visible, .nav-actions button:focus-visible, .quick-actions button:focus-visible, .cal button:focus-visible, .bookbox input:focus-visible, .bookbox textarea:focus-visible, .btn-deposit:focus-visible { outline:2px solid #5b8cff; outline-offset:3px; }
+  </style>
 </head>
 <body class="sam-showcase">
   <a class="skip" href="#q">Skip to Sam</a>
   <nav class="nav">
     <a class="mark" href="./">Company AI Architect</a>
-    <div class="nav-actions"><a href="./privacy.html">Privacy</a><button type="button" data-prompt="I would like to book a free discovery call.">Book a discovery</button></div>
+    <div class="nav-actions"><a href="./hvac-ai-comparison">Compare</a><a href="./atlanta-local-ai-operator">Atlanta</a><a href="./privacy.html">Privacy</a><button type="button" data-prompt="I would like to book a free discovery call.">Book a discovery</button></div>
   </nav>
   <main>
     <section class="desk" id="desk" data-avatar="sam-realistic">
@@ -41,16 +57,20 @@
         <video id="samLiveVideo" class="sam-live-video" muted playsinline aria-hidden="true"></video>
         <div class="desk-veil"></div>
       </div>
-      <div class="avatar-caption"><span id="avatarProgress">Your AI receptionist</span><h1>Your next great hire.<br><em>Meet Sam.</em></h1><p>An AI front desk with a personal touch.</p></div>
+      <div class="avatar-caption"><span id="avatarProgress">Live operator proof</span><h1>Missed calls become<br><em>booked jobs.</em></h1><p>Private local AI operator for HVAC and home-service shops. Sam is the live proof — talk to her, then book a free discovery.</p>
+        <p class="op-price">Discovery <strong>free</strong> · Setup <strong>$4,500–$6,500</strong> · Optional <a href="https://buy.stripe.com/dRm3co5vg8HH4EhfB60Ba09" target="_blank" rel="noopener">reserve deposit</a></p>
+        <div class="proof-strip" aria-label="Who we serve"><span>Greater Atlanta HVAC &amp; home-service shops</span><span>Local-first · data stays on your stack</span><span>Audit + agent + 14-day ride-along</span></div>
+      </div>
       <div class="conversation-panel">
       <div class="desk-ui">
-        <div class="conversation-heading"><p class="kicker">SAM / YOUR AI CONCIERGE</p><span class="state" id="state" role="status" aria-live="polite">Ready when you are</span></div>
-        <p class="said" id="said">Hello, welcome to Company AI Architect. I am Sam, nice to meet you, and who do I have the pleasure of helping today?</p>
-        <p class="hint" id="hint">Explore what AI could do for your business. Ask a question, try a scenario, or find a time to talk.</p>
+        <div class="conversation-heading"><p class="kicker">SAM / LOCAL AI OPERATOR PROOF</p><span class="state" id="state" role="status" aria-live="polite">Ready when you are</span></div>
+        <p class="said" id="said">Hello — I’m Sam with Company AI Architect. I help shops turn missed calls and after-hours notes into booked jobs. What should we try first?</p>
+        <p class="hint" id="hint">Primary path: Book a discovery (Eastern time). Or ask Sam to run a short operator scenario.</p>
         <div id="calendar" class="cal hidden"></div>
         <div id="cards" class="cards hidden"></div>
         <div id="bookbox" class="bookbox hidden">
           <h3>Your discovery call</h3>
+          <p class="fine">Times shown in <strong>Eastern</strong>. After you pick a slot, enter contact details — next steps appear on this page.</p>
           <p class="fine">Requested: <span id="slotLabel"></span></p>
           <form id="bookForm">
             <label>Your name <input name="name" autocomplete="name" required /></label>
@@ -63,34 +83,80 @@
         </div>
         <div id="depositbox" class="depositbox hidden">
           <h3 id="bookingHeading">Your discovery request</h3>
-          <p class="fine">The call is free. If you're ready to reserve implementation capacity, you can make an optional deposit securely through Stripe.</p>
+          <p class="fine">The call is free. Next: we confirm the Eastern-time slot by email. Optional: reserve implementation capacity with a deposit.</p>
           <div class="deposit-actions">
             <button type="button" id="depositBtn">Pay optional deposit</button>
             <a id="googleCal" href="#" target="_blank" rel="noopener">Add to Google Calendar</a>
+            <a class="btn-deposit" href="https://buy.stripe.com/dRm3co5vg8HH4EhfB60Ba09" target="_blank" rel="noopener">Stripe deposit</a>
           </div>
           <p id="depositStatus" class="fine" role="status"></p>
         </div>
       </div>
       <button type="button" id="enter" class="enter">
-        <span class="enter-title">Start a conversation <span aria-hidden="true">↗</span></span>
-        <span class="enter-sub">Hear Sam, or type below.</span>
+        <span class="enter-title">Talk with Sam <span aria-hidden="true">↗</span></span>
+        <span class="enter-sub">Hear her, or type below. Primary CTA stays Book a discovery.</span>
       </button>
       <div class="quick-actions" aria-label="Try Sam">
-        <button type="button" data-prompt="Show me a short example of how you would handle a new customer for my business."><span>01</span> See her in action</button>
-        <button type="button" data-prompt="What can Company AI Architect do for my business?"><span>02</span> Explore our services</button>
-        <button type="button" data-prompt="I would like to leave a message for the team."><span>03</span> Leave a message</button>
+        <button type="button" data-prompt="Run a 20 to 30 second operator scenario: a homeowner calls while the truck is on a job, you take the name and problem, file a short note, and hold a time so the shop can book the job — not a receptionist greeting."><span>01</span> See her in action</button>
+        <button type="button" data-prompt="I would like to book a free discovery call."><span>02</span> Book a discovery</button>
+        <button type="button" data-prompt="Briefly what does the $4500 to $6500 local AI operator setup include?"><span>03</span> What’s included</button>
       </div>
       <div class="dock">
         <details class="transcript"><summary>Conversation history</summary><div class="log" id="log" role="log" aria-label="Conversation history"></div></details>
         <div class="row">
           <button type="button" id="mic" aria-label="Talk to Sam" title="Talk to Sam">Talk</button>
-          <input id="q" type="text" autocomplete="off" aria-label="Your message to Sam" maxlength="800" placeholder="Tell Sam what you have in mind…" />
+          <input id="q" type="text" autocomplete="off" aria-label="Your message to Sam" maxlength="800" placeholder="Ask about missed calls, booking, or local AI setup…" />
           <button type="button" class="primary" id="send">Send</button>
         </div>
-        <div class="conversation-footer"><span>AI receptionist · Discovery is free</span><button id="stopSam" type="button">Stop speaking</button></div>
+        <div class="conversation-footer"><span>Local AI operator proof · Discovery free · Eastern booking</span><button id="stopSam" type="button">Stop speaking</button></div>
       </div>
       </div>
     </section>
+
+    <section class="site-sections" id="services" aria-label="Services and offer">
+      <div class="wrap">
+        <h2>Services</h2>
+        <p>Company AI Architect installs a private local AI operator for owner HVAC, plumbing, and electrical shops — desk language, follow-ups, and job notes that stay on your stack.</p>
+        <ul>
+          <li>Front-desk / after-hours capture that becomes a usable note</li>
+          <li>Estimate and follow-up drafts in shop language</li>
+          <li>SOP recall for dispatch and office</li>
+        </ul>
+        <h2>What you get</h2>
+        <ul>
+          <li><strong>Audit</strong> of call/text/job flow</li>
+          <li><strong>One agent</strong> tuned to your shop (Sam above is the live proof)</li>
+          <li><strong>14-day ride-along</strong> so the operator sticks</li>
+        </ul>
+        <p><a href="./atlanta-local-ai-operator">Atlanta Operator</a> · <a href="./hvac-ai-comparison">HVAC AI comparison</a> · <a href="./ai-opportunity-audit">Opportunity Audit</a> · <a href="https://k3-architect-story.vercel.app">Public intent story</a></p>
+        <h2>Pricing / deposit</h2>
+        <p>Discovery: <strong>free</strong> (30 minutes, Eastern). Setup: <strong>$4,500–$6,500</strong>. Optional deposit:</p>
+        <p><a class="btn-deposit" href="https://buy.stripe.com/dRm3co5vg8HH4EhfB60Ba09" target="_blank" rel="noopener">Reserve setup deposit on Stripe</a></p>
+        <h2>FAQ</h2>
+        <h3>Is Sam the product?</h3>
+        <p>Sam on this page is live proof of a local AI operator. Paid work is audit + agent + ride-along for your shop.</p>
+        <h3>Do you replace Allo / Hero365 / FieldCamp?</h3>
+        <p>Not the claim. Many shops keep field SaaS and add a private operator. See the <a href="./hvac-ai-comparison">comparison hub</a>.</p>
+        <h3>How do I start?</h3>
+        <p>Primary path: <strong>Book a discovery</strong> (Eastern). Or place an optional setup deposit.</p>
+      </div>
+    </section>
+    <footer class="site-sections" style="padding-top:0;">
+      <div class="wrap" style="display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:space-between;">
+        <div>
+          <p style="font-weight:700;color:#fff;">Company AI Architect</p>
+          <p class="fine">Local AI Operator · Greater Atlanta · Nationwide remote</p>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:.75rem 1rem;">
+          <a href="./hvac-ai-comparison">HVAC comparison</a>
+          <a href="./atlanta-local-ai-operator">Atlanta</a>
+          <a href="./ai-opportunity-audit">Audit</a>
+          <a href="./private-ai">Private AI</a>
+          <a href="./privacy.html">Privacy</a>
+        </div>
+      </div>
+      <p class="fine" style="text-align:center;margin-top:1.5rem;">© <span class="year">2026</span> Company AI Architect</p>
+    </footer>
   </main>
   <script src="./sam-video.bundle.js"></script>
   <script src="./sam-voice.js"></script>
@@ -100,6 +166,21 @@
   <script src="./desk-qualify.js"></script>
   <script src="./sam-stt.js"></script>
   <script src="./sam-lipsync.js"></script>
-  <script src="./desk.js"></script>
+  
+  <script>
+    document.querySelectorAll(".year").forEach(function (el) { el.textContent = String(new Date().getFullYear()); });
+    var mic = document.getElementById("mic");
+    if (mic) {
+      var sync = function () {
+        var on = mic.getAttribute("aria-pressed") === "true" || /\b(on|listening|active)\b/.test(mic.className);
+        mic.textContent = on ? "Stop" : "Talk";
+        mic.setAttribute("aria-label", on ? "Stop listening" : "Talk to Sam");
+        mic.title = mic.getAttribute("aria-label");
+      };
+      new MutationObserver(sync).observe(mic, { attributes: true, attributeFilter: ["aria-pressed", "class"] });
+      mic.addEventListener("click", function () { setTimeout(sync, 0); });
+    }
+  </script>
+<script src="./desk.js"></script>
 </body>
 </html>
