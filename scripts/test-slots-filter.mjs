@@ -44,34 +44,34 @@ assert(!res.out.slots.some((s) => s.iso === bookIso), "booked slot 1 still serve
 assert(!res.out.slots.some((s) => s.iso === bookIso2), "booked slot 2 still served");
 assert.equal(res.out.count, all.length - 2, "count mismatch");
 assert.equal(res.out.count, res.out.slots.length, "count != slots.length");
-assert.deepEqual(Object.keys(res.out).sort(), ["count", "slotMinutes", "slots", "timezone"], "response shape changed");
+assert.deepEqual(Object.keys(res.out).sort(), ["bookingMode", "count", "slotMinutes", "slots", "timezone"], "response shape changed");
 console.log("PASS case1: booked slots removed (" + all.length + " -> " + res.out.count + ")");
 
-// --- Case 2: fetch rejects -> all slots served ---
+// --- Case 2: fetch rejects -> fail closed ---
 global.fetch = async () => { throw new Error("network down"); };
 res = mkRes();
 await handler({ method: "GET" }, res);
-assert.equal(res.code, 200);
-assert.equal(res.out.count, all.length, "failure path should serve ALL slots");
-console.log("PASS case2: fetch failure serves all " + res.out.count + " slots");
+assert.equal(res.code, 503);
+assert.deepEqual(res.out, { error: "availability_unavailable" });
+console.log("PASS case2: fetch failure hides availability");
 
-// --- Case 3: non-ok HTTP response -> all slots served ---
+// --- Case 3: non-ok HTTP response -> fail closed ---
 global.fetch = async () => ({ ok: false, status: 403, json: async () => ({}) });
 res = mkRes();
 await handler({ method: "GET" }, res);
-assert.equal(res.code, 200);
-assert.equal(res.out.count, all.length, "http-error path should serve ALL slots");
-console.log("PASS case3: http 403 serves all slots");
+assert.equal(res.code, 503);
+assert.deepEqual(res.out, { error: "availability_unavailable" });
+console.log("PASS case3: http 403 hides availability");
 
-// --- Case 4: token missing -> all slots served, no fetch call ---
+// --- Case 4: token missing -> fail closed, no fetch call ---
 delete process.env.GITHUB_TOKEN;
 delete process.env.INTAKE_REPO;
 global.fetch = async () => { throw new Error("should not be called"); };
 res = mkRes();
 await handler({ method: "GET" }, res);
-assert.equal(res.code, 200);
-assert.equal(res.out.count, all.length, "no-token path should serve ALL slots");
-console.log("PASS case4: missing token serves all slots without fetching");
+assert.equal(res.code, 503);
+assert.deepEqual(res.out, { error: "availability_unavailable" });
+console.log("PASS case4: missing token hides availability without fetching");
 
 global.fetch = realFetch;
 console.log("ALL TESTS PASSED");

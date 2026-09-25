@@ -92,6 +92,42 @@ try {
     mockIntake([{ number: 8, body: `- slot_utc: ${offered}\n- email: original@example.com\n- idem: shared` }]);
     assert.equal((await call(book, { ...payload, idempotencyKey: 'shared' })).code, 409);
   });
+  await check('corrupt reservations hide availability and prevent booking writes', async () => {
+    for (const body of [
+      '- slot_utc: not-a-date',
+      `- slot_utc: ${offered}\n- duration_minutes: -30`,
+      `- slot_utc: ${offered}\n- duration_minutes: 0`,
+      `- slot_utc: ${offered}\n- duration_minutes: Infinity`,
+      `- slot_utc: ${offered}\n- duration_minutes: garbage`,
+      `- slot_utc: ${offered}\n- duration_minutes: 0.5`,
+    ]) {
+      let writes = 0;
+      global.fetch = async (url, init) => {
+        if (init?.method === 'POST') writes++;
+        if (String(url).endsWith('/repos/example/private')) return response({ private: true });
+        return response([{ number: 1, body }]);
+      };
+      const availability = await call(slots, {}, 'GET');
+      assert.equal(availability.code, 503);
+      assert.deepEqual(availability.out, { error: 'availability_unavailable' });
+      assert.equal((await call(book, payload)).code, 503);
+      assert.equal(writes, 0);
+    }
+  });
+  await check('booking pagination shares a total deadline', async () => {
+    const realNow = Date.now;
+    let now = realNow(), calls = 0;
+    Date.now = () => now;
+    global.fetch = async () => {
+      calls++;
+      now += 6000;
+      return response(Array.from({ length: 100 }, (_, i) => ({ number: i + 1 })));
+    };
+    try {
+      await assert.rejects(listBookings('test', 'example/private'), /availability_unavailable/);
+      assert.equal(calls, 2, 'must stop instead of starting a third page after deadline');
+    } finally { Date.now = realNow; }
+  });
   await check('pagination retains bookings beyond page one', async () => {
     let pages = 0;
     global.fetch = async (url) => { pages++; return response(String(url).includes('page=2') ? [{ number: 101 }] : Array.from({ length: 100 }, (_, i) => ({ number: i + 1 }))); };
