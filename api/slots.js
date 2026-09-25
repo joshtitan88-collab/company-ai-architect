@@ -49,7 +49,7 @@ export async function bookedStarts() {
   const token = process.env.GITHUB_TOKEN;
   const intake = await verifyPrivateIntake(token);
   if (!intake.ok) throw new Error(intake.error);
-  return new Set((await listBookings(token, intake.repo)).map((issue) => bookingRange(issue).start).filter(Number.isFinite));
+  return new Set((await listBookings(token, intake.repo)).map((issue) => bookingRange(issue).start));
 }
 
 export default async function handler(req, res) {
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     if (!intake.ok) throw new Error(intake.error);
     stage = "read_bookings";
     const records = await listBookings(process.env.GITHUB_TOKEN, intake.repo);
-    const reserved = records.map(bookingRange).filter((range) => Number.isFinite(range.start));
+    const reserved = records.map(bookingRange);
     if (googleCalendarConfigured()) {
       stage = "read_calendar";
       const liveBusy = await getGoogleBusy(new Date().toISOString(), new Date(Date.now() + 21 * 86400000).toISOString());
