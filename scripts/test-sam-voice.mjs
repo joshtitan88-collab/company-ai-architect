@@ -179,12 +179,12 @@ console.log('PASS SamVoice: canned Eve playback, no paid TTS, one analyser, movi
   h.audios[0].currentTime = 0;
   assert.equal(h.video.currentTime, 7, 'loading cannot start or seek the visible greeting');
   h.audios[0].playing();
-  assert.equal(h.video.currentTime, .079, 'repeated greeting starts with measured audio offset');
+  assert.equal(h.video.currentTime, 7, 'playback start does not seek the greeting to the audio clock');
   assert.equal(h.video.muted, true, 'video must never become a second voice');
   h.audios[0].currentTime = 3;
   h.video.currentTime = 1;
   h.audios[0].dispatchEvent(new Event('timeupdate'));
-  assert.equal(h.video.currentTime, 3.079, 'greeting follows actual audio after delayed video playback');
+  assert.equal(h.video.currentTime, 1, 'timeupdate never seeks the mouth onto the audio clock');
   h.voice.stop('interrupt');
   assert.equal((await greeting).status, 'cancelled');
   h.video.dataset.speechClip = 'reply';
@@ -202,7 +202,7 @@ console.log('PASS SamVoice: canned Eve playback, no paid TTS, one analyser, movi
   h.audios[0].end();
   assert.equal((await greeting).status, 'ended', 'voice remains available with reduced motion');
 }
-console.log('PASS original greeting alignment, muted video, interrupted sync cleanup and reduced motion');
+console.log('PASS muted mouth, no audio-clock seek, interrupted sync cleanup and reduced motion');
 
 {
   const hub = channelHub();

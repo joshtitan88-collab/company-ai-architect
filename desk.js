@@ -93,7 +93,7 @@ function armVideos() {
   const ok = (el) => el && el.readyState >= 2 && el.videoWidth > 0;
   if (ok(vidIdle) || ok(vidTalk) || ok(vidListen) || ok(vidProcess)) desk.classList.add("has-vid");
   // Only nudge the idle layer; other modes own their own layer via setMode
-  // (never touch vidTalk here — sam-lipsync.js may be pausing it mid-talk).
+  // Leave vidTalk to the mouth driver so an in-flight utterance is not paused here.
   if (mode === "idle" && vidIdle) {
     vidIdle.classList.add("on");
     playVid(vidIdle, false);
@@ -137,18 +137,24 @@ function setMode(next) {
   fadeTimer = setTimeout(() => {
     const current = VIDS[mode] || vidIdle;
     Object.values(VIDS).forEach((el) => {
-      // Never pause the active layer (sam-lipsync.js may itself pause/play
-      // vidTalk during talk — we leave the visible layer alone), and skip
-      // any layer that became active again mid-fade.
-      if (el && el !== current && !el.classList.contains("on")) el.pause();
+      // Leave the visible layer alone, and leave an armed talk clip running.
+      // The mouth driver never pauses idle, listen, or process.
+      if (!el || el === current || el.classList.contains("on")) return;
+      if (el === vidTalk && el.dataset.mouthLive === "1") return;
+      el.pause();
     });
   }, FADE_MS);
 }
 
 // SamVoice drives the talk state; greeting plays its own lip-synced clip.
 window.addEventListener("samvoice:start", () => setMode("talk"));
-window.addEventListener("samvoice:end", () => { if (mode === "talk") setMode("idle"); });
-window.addEventListener("samvoice:cancel", () => { if (mode === "talk") setMode("idle"); });
+function releaseTalkClip(event) {
+  const reason = event && event.detail && event.detail.reason;
+  if (reason === "superseded" || reason === "new_reply") return;
+  if (vidTalk) vidTalk.dataset.mouthLive = "";
+}
+window.addEventListener("samvoice:end", (event) => { releaseTalkClip(event); if (mode === "talk") setMode("idle"); });
+window.addEventListener("samvoice:cancel", (event) => { releaseTalkClip(event); if (mode === "talk") setMode("idle"); });
 window.addEventListener("samvoice:loading", () => setMode("process"));
 window.addEventListener("samvoice:unavailable", (event) => {
   setMode("idle");
@@ -170,14 +176,18 @@ function stopEverything(reason) {
   }
   SamVoice.stop(reason || "interrupted");
   if (window.SamAvatar && SamAvatar.active()) SamAvatar.stop();
+  mouthToken++;
+  if (window.SamMouth && typeof window.SamMouth.cancel === "function") window.SamMouth.cancel();
   if (vidTalk) {
     vidTalk.onended = null;
     vidTalk.dataset.ownAudio = "";
+    vidTalk.dataset.mouthLive = "";
     vidTalk.pause();
     vidTalk.muted = true;
   }
 }
 
+let mouthToken = 0;
 function speak(text, expectedTurn) {
   if (expectedTurn != null && expectedTurn !== turnNumber) return;
   SamVoice.stop("new_reply");
@@ -186,14 +196,33 @@ function speak(text, expectedTurn) {
   addLog("sam", text);
   // One Eve audio authority handles every line, including the greeting.
   if (vidTalk && !reduceMotion) {
-    // Keep the original recorded introduction paired with its matching voice.
-    // Other replies use the original Sam's motion loop, never another face.
+    // Greeting uses the recorded introduction. Other lines loop the same face.
     const greeting = text === GREETING;
     vidTalk.dataset.ownAudio = "";
     vidTalk.dataset.speechClip = greeting ? "greeting" : "reply";
     vidTalk.onended = null;
-    setTalkClip(greeting ? GREETING_CLIP : TALK_CLIP, !greeting);
     vidTalk.muted = true;
+    const src = greeting ? GREETING_CLIP : TALK_CLIP;
+    const loop = !greeting;
+    const mouth = window.SamMouth;
+    if (mouth && typeof mouth.whenCanPlay === "function" && typeof mouth.startWithAudio === "function") {
+      const token = ++mouthToken;
+      mouth.whenCanPlay(src, loop).then(function (ready) {
+        if (token !== mouthToken) return;
+        if (expectedTurn != null && expectedTurn !== turnNumber) return;
+        if (!ready) {
+          setTalkClip(src, loop);
+          SamVoice.play(text);
+          return;
+        }
+        mouth.zeroBeforePlay(vidTalk);
+        vidTalk.dataset.mouthLive = "1";
+        // video.play() is hooked to the same turn as this line's audio.play().
+        mouth.startWithAudio(function () { SamVoice.play(text); });
+      });
+      return;
+    }
+    setTalkClip(src, loop);
   }
   SamVoice.play(text);
 }
