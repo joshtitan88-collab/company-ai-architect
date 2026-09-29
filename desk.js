@@ -140,7 +140,9 @@ function setMode(next) {
       // Leave the visible layer alone, and leave an armed talk clip running.
       // The mouth driver never pauses idle, listen, or process.
       if (!el || el === current || el.classList.contains("on")) return;
-      if (el === vidTalk && el.dataset.mouthLive === "1") return;
+      // Idle, listen, and process keep looping. Only an unarmed talk clip may pause.
+      if (el !== vidTalk) return;
+      if (el.dataset.mouthLive === "1") return;
       el.pause();
     });
   }, FADE_MS);
