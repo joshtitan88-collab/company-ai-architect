@@ -59,7 +59,7 @@
       </div>
       <div class="avatar-caption"><span id="avatarProgress">Live operator proof</span><h1>Missed calls become<br><em>booked jobs.</em></h1><p>Private local AI operator for HVAC and home-service shops. Sam is the live proof — talk to her, then book a free discovery.</p>
         <p class="op-price">Discovery <strong>free</strong> · Setup <strong>$4,500–$6,500</strong> · Optional <a href="https://buy.stripe.com/dRm3co5vg8HH4EhfB60Ba09" target="_blank" rel="noopener">reserve deposit</a></p>
-        <div class="proof-strip" aria-label="Who we serve"><span>Greater Atlanta HVAC &amp; home-service shops</span><span>Local-first · data stays on your stack</span><span>Audit + agent + 14-day ride-along</span></div>
+        <div class="proof-strip" aria-label="Who we serve"><span>Greater Atlanta HVAC & home-service shops</span><span>Local-first · data stays on your stack</span><span>Audit + agent + 14-day ride-along</span></div>
       </div>
       <div class="conversation-panel">
       <div class="desk-ui">
@@ -97,7 +97,7 @@
         <span class="enter-sub">Hear her, or type below. Primary CTA stays Book a discovery.</span>
       </button>
       <div class="quick-actions" aria-label="Try Sam">
-        <button type="button" data-prompt="Run a 20 to 30 second operator scenario: a homeowner calls while the truck is on a job, you take the name and problem, file a short note, and hold a time so the shop can book the job — not a receptionist greeting."><span>01</span> See her in action</button>
+        <button type="button" id="seeScenario" data-scenario="missed-call"><span>01</span> See her in action</button>
         <button type="button" data-prompt="I would like to book a free discovery call."><span>02</span> Book a discovery</button>
         <button type="button" data-prompt="Briefly what does the $4500 to $6500 local AI operator setup include?"><span>03</span> What’s included</button>
       </div>
@@ -183,5 +183,25 @@
     }
   </script>
 <script src="./desk.js"></script>
+  <script>
+    // Item 01 plays a fictional missed-call scenario. It does not open discovery booking.
+    document.getElementById("seeScenario").addEventListener("click", function () {
+      var steps = [
+        { t: "Missed call", b: "Example Heating (example.com). The truck is already on a job. A homeowner reports no heat since this morning. Fictional shop only." },
+        { t: "Note filed", b: "Problem captured: no heat. A short office note is filed and the first open morning window is held." },
+        { t: "Booked job", b: "No-heat visit is on the morning route. This sample does not open the discovery calendar." }
+      ];
+      begin(false);
+      stopEverything("scenario");
+      hidePanels();
+      showCards("Operator scenario", steps);
+      speak("Sample only. Example Heating missed a no-heat call while the truck was out, and that call is now a booked morning job. The discovery calendar stays closed.");
+      var note = document.getElementById("hint");
+      if (note) {
+        note.textContent = "Sample only. Missed call became a booked job. Discovery calendar stayed closed.";
+        note.classList.remove("hidden");
+      }
+    });
+  </script>
 </body>
 </html>
