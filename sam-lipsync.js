@@ -216,7 +216,11 @@
 
   ["end", "cancel", "error", "unavailable"].forEach(function (name) {
     window.addEventListener("samvoice:" + name, function (event) {
-      if (name !== "end") clearAudioHook();
+      // play() stops the previous line before it starts audio. That cancel
+      // must not remove the hook that pairs this line's video.play() with audio.play().
+      const reason = event.detail && event.detail.reason;
+      const internal = reason === "superseded" || reason === "new_reply";
+      if (name !== "end" && !internal) clearAudioHook();
       if (generation === null || !event.detail || event.detail.generation === generation) clearLevel();
     });
   });
