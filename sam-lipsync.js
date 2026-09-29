@@ -1,60 +1,209 @@
 /**
- * Original realistic Sam video presentation. SamVoice alone owns the audio.
- * Natural silences must never freeze Sam's face. The video keeps moving while
- * measured energy is exposed for 3D consumers through samvoice:level events.
- * desk.js owns transitions between idle and talk; this adapter owns no audio.
+ * Company-face mouth driver. SamVoice alone owns the audio.
+ * No audio-clock seek. After play() starts, currentTime is never assigned.
+ * Idle, listen, and process loops are never paused here.
+ * video.play() runs in the same turn as the utterance's audio.play().
  */
 (function () {
   "use strict";
   if (typeof window === "undefined" || typeof document === "undefined") return;
+
   let generation = null;
-  let trackedAudio = null;
-  let syncGreeting = null;
+  let gestureRetry = null;
+  let restorePlay = null;
   const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-  // The MP3 is the introduction's audio with 79 ms of leading delay removed.
-  // Verified against the original MP4 audio; do not stretch unrelated replies.
-  const GREETING_OFFSET = 0.079;
+
   function mouth() { return document.getElementById("vidTalk"); }
-  function clear() {
-    if (trackedAudio && syncGreeting) {
-      trackedAudio.removeEventListener("timeupdate", syncGreeting);
-      trackedAudio.removeEventListener("playing", syncGreeting);
-    }
-    trackedAudio = null;
-    syncGreeting = null;
-    generation = null;
-    const video = mouth();
-    if (video) {
-      video.style.setProperty("--sam-voice-level", "0");
-      delete video.dataset.speaking;
+
+  function fileName(value) {
+    return String(value || "").split("#")[0].split("?")[0].split("/").pop();
+  }
+
+  function declaredSource(video) {
+    try {
+      const source = video.querySelector && video.querySelector("source");
+      return source && source.getAttribute ? source.getAttribute("src") : "";
+    } catch (_e) {
+      return "";
     }
   }
+
+  function sameSource(video, src) {
+    const target = fileName(src);
+    if (!target) return false;
+    return [video.currentSrc, video.src, declaredSource(video)].some(function (item) {
+      return fileName(item) === target;
+    });
+  }
+
+  function canPlay(video) {
+    return video.readyState >= 3;
+  }
+
+  function clearLevel() {
+    generation = null;
+    const video = mouth();
+    if (!video) return;
+    video.style.setProperty("--sam-voice-level", "0");
+    delete video.dataset.speaking;
+  }
+
+  function clearAudioHook() {
+    const Ctor = window.Audio;
+    if (restorePlay && Ctor && Ctor.prototype.play === restorePlay.wrapped) {
+      Ctor.prototype.play = restorePlay.orig;
+    }
+    restorePlay = null;
+  }
+
+  function disarmGesture() {
+    if (!gestureRetry) return;
+    window.removeEventListener("pointerdown", gestureRetry, true);
+    window.removeEventListener("keydown", gestureRetry, true);
+    gestureRetry = null;
+  }
+
+  function retryPlayOnGesture(video) {
+    if (!video || gestureRetry) return;
+    gestureRetry = function () {
+      disarmGesture();
+      let pending;
+      try { pending = video.play(); } catch (_e) { pending = null; }
+      if (pending && typeof pending.catch === "function") {
+        pending.catch(function () { retryPlayOnGesture(video); });
+      }
+    };
+    window.addEventListener("pointerdown", gestureRetry, true);
+    window.addEventListener("keydown", gestureRetry, true);
+  }
+
+  function startVideo(video) {
+    if (!video || reducedMotion) return;
+    video.muted = true;
+    video.defaultMuted = true;
+    if ("volume" in video) video.volume = 0;
+    video.dataset.mouthStarted = "1";
+    video.dataset.mouthLive = "1";
+    let pending;
+    try {
+      pending = video.play();
+    } catch (_e) {
+      retryPlayOnGesture(video);
+      return;
+    }
+    if (pending && typeof pending.catch === "function") {
+      pending.catch(function () { retryPlayOnGesture(video); });
+    }
+  }
+
+  // One currentTime write per utterance, and only before play().
+  function zeroBeforePlay(video) {
+    if (!video || video.dataset.mouthStarted === "1") return;
+    if (video.currentTime === 0) return;
+    try { video.currentTime = 0; } catch (_e) {}
+  }
+
+  let prepareGen = 0;
+  function whenCanPlay(src, loop) {
+    const video = mouth();
+    const gen = ++prepareGen;
+    if (!video) return Promise.resolve(false);
+    video.dataset.mouthStarted = "";
+    video.loop = !!loop;
+    video.muted = true;
+    video.defaultMuted = true;
+    if ("volume" in video) video.volume = 0;
+    // A src change leaves the previous readyState until the new clip loads.
+    // Do not treat that as canplay, and do not seek to recover.
+    const changed = !sameSource(video, src);
+    if (changed) {
+      video.src = src;
+      try { video.load(); } catch (_e) {}
+    }
+    if (!changed && canPlay(video)) return Promise.resolve(true);
+    return new Promise(function (resolve) {
+      let settled = false;
+      const finish = function (ok) {
+        if (settled || gen !== prepareGen) return;
+        settled = true;
+        video.removeEventListener("canplay", onReady);
+        video.removeEventListener("error", onError);
+        resolve(!!ok && canPlay(video));
+      };
+      const onReady = function () {
+        if (canPlay(video)) finish(true);
+      };
+      const onError = function () { finish(false); };
+      video.addEventListener("canplay", onReady);
+      video.addEventListener("error", onError);
+      if (!changed && canPlay(video)) finish(true);
+    });
+  }
+
+  function hookNextAudioPlay(video) {
+    clearAudioHook();
+    const Ctor = window.Audio;
+    const inherited = Ctor && Ctor.prototype ? Ctor.prototype.play : null;
+    if (typeof inherited !== "function") {
+      startVideo(video);
+      return;
+    }
+    const orig = inherited;
+    function wrapped() {
+      if (Ctor.prototype.play === wrapped) Ctor.prototype.play = orig;
+      restorePlay = null;
+      startVideo(video);
+      return orig.apply(this, arguments);
+    }
+    restorePlay = { orig: orig, wrapped: wrapped };
+    Ctor.prototype.play = wrapped;
+  }
+
+  function startWithAudio(startAudio) {
+    const video = mouth();
+    if (!video) {
+      startAudio();
+      return;
+    }
+    hookNextAudioPlay(video);
+    try {
+      startAudio();
+    } catch (error) {
+      clearAudioHook();
+      throw error;
+    }
+  }
+
+  function cancel() {
+    prepareGen++;
+    clearAudioHook();
+    disarmGesture();
+    const video = mouth();
+    if (video) video.dataset.mouthLive = "";
+  }
+
+  window.SamMouth = {
+    whenCanPlay: whenCanPlay,
+    zeroBeforePlay: zeroBeforePlay,
+    startWithAudio: startWithAudio,
+    retryPlayOnGesture: retryPlayOnGesture,
+    cancel: cancel,
+  };
+
   window.addEventListener("samvoice:start", function (event) {
     const detail = event.detail || {};
     if (!detail.audio) return;
-    clear();
-    if (detail.source === "video") return;
+    if (detail.source === "video") {
+      clearAudioHook();
+      return;
+    }
     generation = detail.generation;
     const video = mouth();
     if (!video || video.dataset.ownAudio === "1" || reducedMotion) return;
     video.muted = true;
-    if (video.dataset.speechClip === "greeting") {
-      trackedAudio = detail.audio;
-      syncGreeting = function () {
-        if (generation !== detail.generation || video.dataset.speechClip !== "greeting") return;
-        const target = (Number(detail.audio.currentTime) || 0) + GREETING_OFFSET;
-        if (Math.abs((Number(video.currentTime) || 0) - target) > 0.06) {
-          try { video.currentTime = target; } catch (_e) {}
-        }
-      };
-      trackedAudio.addEventListener("timeupdate", syncGreeting);
-      trackedAudio.addEventListener("playing", syncGreeting);
-      syncGreeting();
-    }
-    if (video.paused) {
-      try { const p = video.play(); if (p && p.catch) p.catch(function () {}); } catch (_e) {}
-    }
+    if ("volume" in video) video.volume = 0;
   });
+
   window.addEventListener("samvoice:level", function (event) {
     const detail = event.detail || {};
     if (generation === null || detail.generation !== generation) return;
@@ -64,9 +213,11 @@
     video.style.setProperty("--sam-voice-level", String(level));
     video.dataset.speaking = level > 0.015 ? "1" : "0";
   });
+
   ["end", "cancel", "error", "unavailable"].forEach(function (name) {
     window.addEventListener("samvoice:" + name, function (event) {
-      if (generation === null || !event.detail || event.detail.generation === generation) clear();
+      if (name !== "end") clearAudioHook();
+      if (generation === null || !event.detail || event.detail.generation === generation) clearLevel();
     });
   });
 })();
